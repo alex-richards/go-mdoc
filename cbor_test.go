@@ -8,39 +8,38 @@ import (
 )
 
 type TestStruct struct {
-    One int
-    Two string
+	One int
+	Two string
 }
 
-func TestEncodedCBORTagged(t *testing.T){
-    testStruct := TestStruct {
-        One: 1,
-        Two: "2",
-    }
+func TestEncodedCBORTagged(t *testing.T) {
+	testStruct := TestStruct{
+		One: 1,
+		Two: "2",
+	}
 
-    testStructBytes, err := cbor.Marshal(testStruct)
-    if err != nil {
-        t.Fatal(err)
-    }
+	testStructBytes, err := cbor.Marshal(testStruct)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-    err = cbor.Unmarshal(testStructBytes, TaggedEncodedCBOR{})
-    if err == nil {
-        t.Fatal()
-    }
+	err = cbor.Unmarshal(testStructBytes, TaggedEncodedCBOR{})
+	if err == nil {
+		t.Fatal()
+	}
 
-    testStructBytesTagged, err := cbor.Marshal((TaggedEncodedCBOR)(testStructBytes))
-    if err != nil {
-        t.Fatal(err)
-    }
+	testStructBytesTagged, err := cbor.Marshal((TaggedEncodedCBOR)(testStructBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
 
-    testStructBytesUntagged := make([]byte, 0)
-    err = cbor.Unmarshal(testStructBytesTagged, (*TaggedEncodedCBOR)(&testStructBytesUntagged))
-    if err != nil {
-        t.Fatal(err)
-    }
+	testStructBytesUntagged := make([]byte, 0)
+	err = cbor.Unmarshal(testStructBytesTagged, (*TaggedEncodedCBOR)(&testStructBytesUntagged))
+	if err != nil {
+		t.Fatal(err)
+	}
 
-    if diff := cmp.Diff(testStructBytes, testStructBytesUntagged); diff != "" {
-        t.Fatal(diff)
-    }
+	if diff := cmp.Diff(testStructBytes, testStructBytesUntagged); diff != "" {
+		t.Fatal(diff)
+	}
 }
-
