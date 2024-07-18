@@ -32,8 +32,7 @@ func NewDeviceEngagement(eDeviceKey *cose.Key) (*DeviceEngagement, error) {
 
 func (de *DeviceEngagement) EDeviceKey() (*cose.Key, error) {
 	eDeviceKey := new(cose.Key)
-	err := cbor.Unmarshal(de.Security.EDeviceKeyBytes, eDeviceKey)
-	if err != nil {
+	if err := cbor.Unmarshal(de.Security.EDeviceKeyBytes, eDeviceKey); err != nil {
 		return nil, err
 	}
 	return eDeviceKey, nil
@@ -46,7 +45,7 @@ type Security struct {
 }
 
 func newSecurity(eDeviceKey *cose.Key) (*Security, error) {
-	eDeviceKeyBytes, err := eDeviceKey.MarshalCBOR()
+	eDeviceKeyBytes, err := cbor.Marshal(eDeviceKey)
 	if err != nil {
 		return nil, err
 	}
