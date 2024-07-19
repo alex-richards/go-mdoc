@@ -1,6 +1,8 @@
 package mdoc
 
 import (
+	"bytes"
+	"encoding/hex"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
@@ -23,14 +25,17 @@ func TestEncodedCBORTagged(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = cbor.Unmarshal(testStructBytes, TaggedEncodedCBOR{})
-	if err == nil {
+	errUntagged := cbor.Unmarshal(testStructBytes, TaggedEncodedCBOR{})
+	if errUntagged == nil {
 		t.Fatal()
 	}
 
 	testStructBytesTagged, err := cbor.Marshal((TaggedEncodedCBOR)(testStructBytes))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if bytes.Equal(testStructBytesTagged[0:1], []byte{0xd8, TagEncodedCBOR}) {
+		t.Fatal(hex.EncodeToString(testStructBytesTagged))
 	}
 
 	testStructBytesUntagged := make([]byte, 0)
