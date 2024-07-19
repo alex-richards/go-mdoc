@@ -9,7 +9,7 @@ import (
 
 func TestNewSessionEstablishment(t *testing.T) {
 	sessionEstablishment, err := NewSessionEstablishment(
-		EReaderKey,
+		EReaderKeyPublic,
 		[]byte{1, 2, 3, 4},
 	)
 	if err != nil {

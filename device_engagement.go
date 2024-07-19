@@ -1,7 +1,6 @@
 package mdoc
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/fxamacker/cbor/v2"
@@ -86,8 +85,8 @@ func newBleDeviceRetrievalMethod() DeviceRetrievalMethod {
 }
 
 func (deviceRetrievalMethod *DeviceRetrievalMethod) UnmarshalCBOR(data []byte) error {
-	var intermediateDeviceRetreievalMethod intermediateDeviceRetreievalMethod
-	err := cbor.Unmarshal(data, &intermediateDeviceRetreievalMethod)
+	intermediateDeviceRetreievalMethod := new(intermediateDeviceRetreievalMethod)
+	err := cbor.Unmarshal(data, intermediateDeviceRetreievalMethod)
 	if err != nil {
 		return err
 	}
@@ -102,13 +101,21 @@ func (deviceRetrievalMethod *DeviceRetrievalMethod) UnmarshalCBOR(data []byte) e
 		deviceRetrievalMethod.RetrievalOptions = bleOptions
 
 	default:
-		return errors.New(fmt.Sprintf("DeviceRetrievalMethod - no unmashaller for type %d", deviceRetrievalMethod.Type))
+		return &ErrorUnreccognisedReterevalMethod{Type: intermediateDeviceRetreievalMethod.Type}
 	}
 
 	deviceRetrievalMethod.Type = intermediateDeviceRetreievalMethod.Type
 	deviceRetrievalMethod.Version = intermediateDeviceRetreievalMethod.Version
 
 	return nil
+}
+
+type ErrorUnreccognisedReterevalMethod struct {
+	Type uint
+}
+
+func (err *ErrorUnreccognisedReterevalMethod) Error() string {
+	return fmt.Sprintf("DeviceRetrievalMethod - no unmashaller for type %d", err.Type)
 }
 
 type RetrievalOptions interface{}
