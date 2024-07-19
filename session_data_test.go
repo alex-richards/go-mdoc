@@ -43,22 +43,22 @@ func TestSessionEstablishmentCBORRoundTrip(t *testing.T) {
 }
 
 func TestSessionDataCBORRoundTrip(t *testing.T) {
-    sessionData := &SessionData{
-        Data: []byte{1,2,3,4},
-        Status: SessionStatusSessionTermination,
-    }
+	sessionData := &SessionData{
+		Data:   []byte{1, 2, 3, 4},
+		Status: SessionStatusSessionTermination,
+	}
 
-    sessionDataBytes, err := cbor.Marshal(sessionData)
-    if err != nil {
-        t.Fatal(err)
-    }
+	sessionDataBytes, err := cbor.Marshal(sessionData)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-    sessionDataUnmarshalled := new(SessionData)
-    if err = cbor.Unmarshal(sessionDataBytes, sessionDataUnmarshalled); err != nil {
-        t.Fatal(err)
-    }
+	sessionDataUnmarshalled := new(SessionData)
+	if err = cbor.Unmarshal(sessionDataBytes, sessionDataUnmarshalled); err != nil {
+		t.Fatal(err)
+	}
 
-    if diff := cmp.Diff(sessionData, sessionDataUnmarshalled); diff != "" {
-        t.Fatal(diff)
-    }
+	if diff := cmp.Diff(sessionData, sessionDataUnmarshalled); diff != "" {
+		t.Fatal(diff)
+	}
 }
