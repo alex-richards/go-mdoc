@@ -1,12 +1,20 @@
 package mdoc
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/uuid"
 	"github.com/veraison/go-cose"
 )
+
+const (
+	DeviceRetrievalMethodTypeNFC       = 1
+	DeviceRetrievalMethodTypeBLE       = 2
+	DeviceRetrievalMethodTypeWiFiAware = 3
+)
+
+var ErrorUnreccognisedReterevalMethod = errors.New("unreccognised retreival method")
 
 type DeviceEngagement struct {
 	Version                string                  `cbor:"0,keyasint"`
@@ -15,16 +23,35 @@ type DeviceEngagement struct {
 }
 
 func NewDeviceEngagement(eDeviceKey *cose.Key) (*DeviceEngagement, error) {
-	security, err := newSecurity(eDeviceKey)
+	eDeviceKeyBytesUntagged, err := cbor.Marshal(eDeviceKey)
 	if err != nil {
 		return nil, err
 	}
 
+	eDeviceKeyBytes, err := NewTaggedEncodedCBOR(eDeviceKeyBytesUntagged)
+	if err != nil {
+		return nil, err
+	}
+
+	peripheralServerUUID := uuid.New()
+	centralClientUUID := uuid.New()
 	return &DeviceEngagement{
 		"1.0",
-		*security,
+		Security{
+			CipherSuiteIdentifier: 1,
+			EDeviceKeyBytes:       *eDeviceKeyBytes,
+		},
 		[]DeviceRetrievalMethod{
-			newBleDeviceRetrievalMethod(),
+			{
+				Type:    DeviceRetrievalMethodTypeBLE,
+				Version: 1,
+				RetrievalOptions: BleOptions{
+					SupportsPeripheralServer: true,
+					SupportsCentralClient:    true,
+					PeripheralServerUUID:     &peripheralServerUUID,
+					CentralClientUUID:        &centralClientUUID,
+				},
+			},
 		},
 	}, nil
 }
@@ -49,23 +76,6 @@ type Security struct {
 	EDeviceKeyBytes       TaggedEncodedCBOR
 }
 
-func newSecurity(eDeviceKey *cose.Key) (*Security, error) {
-	eDeviceKeyBytesUntagged, err := cbor.Marshal(eDeviceKey)
-	if err != nil {
-		return nil, err
-	}
-
-	eDeviceKeyBytes, err := NewTaggedEncodedCBOR(eDeviceKeyBytesUntagged)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Security{
-		CipherSuiteIdentifier: 1,
-		EDeviceKeyBytes:       *eDeviceKeyBytes,
-	}, nil
-}
-
 type DeviceRetrievalMethod struct {
 	_                struct{} `cbor:",toarray"`
 	Type             uint
@@ -80,53 +90,28 @@ type intermediateDeviceRetreievalMethod struct {
 	RetrievalOptions cbor.RawMessage
 }
 
-func newBleDeviceRetrievalMethod() DeviceRetrievalMethod {
-	peripheralServerUUID := uuid.New()
-	centralClientUUID := uuid.New()
-	return DeviceRetrievalMethod{
-		Type:    2,
-		Version: 1,
-		RetrievalOptions: BleOptions{
-			SupportsPeripheralServer: true,
-			SupportsCentralClient:    true,
-			PeripheralServerUUID:     &peripheralServerUUID,
-			CentralClientUUID:        &centralClientUUID,
-		},
-	}
-}
-
-func (deviceRetrievalMethod *DeviceRetrievalMethod) UnmarshalCBOR(data []byte) error {
-	intermediateDeviceRetreievalMethod := new(intermediateDeviceRetreievalMethod)
-	err := cbor.Unmarshal(data, intermediateDeviceRetreievalMethod)
-	if err != nil {
+func (drm *DeviceRetrievalMethod) UnmarshalCBOR(data []byte) error {
+	var intermediateDeviceRetreievalMethod intermediateDeviceRetreievalMethod
+	if err := cbor.Unmarshal(data, &intermediateDeviceRetreievalMethod); err != nil {
 		return err
 	}
 
 	switch intermediateDeviceRetreievalMethod.Type {
-	case 2:
-		bleOptions := BleOptions{}
-		err = cbor.Unmarshal(intermediateDeviceRetreievalMethod.RetrievalOptions, &bleOptions)
-		if err != nil {
+	case DeviceRetrievalMethodTypeBLE:
+		var bleOptions BleOptions
+		if err := cbor.Unmarshal(intermediateDeviceRetreievalMethod.RetrievalOptions, &bleOptions); err != nil {
 			return err
 		}
-		deviceRetrievalMethod.RetrievalOptions = bleOptions
+		drm.RetrievalOptions = bleOptions
 
 	default:
-		return &ErrorUnreccognisedReterevalMethod{Type: intermediateDeviceRetreievalMethod.Type}
+		return ErrorUnreccognisedReterevalMethod
 	}
 
-	deviceRetrievalMethod.Type = intermediateDeviceRetreievalMethod.Type
-	deviceRetrievalMethod.Version = intermediateDeviceRetreievalMethod.Version
+	drm.Type = intermediateDeviceRetreievalMethod.Type
+	drm.Version = intermediateDeviceRetreievalMethod.Version
 
 	return nil
-}
-
-type ErrorUnreccognisedReterevalMethod struct {
-	Type uint
-}
-
-func (err *ErrorUnreccognisedReterevalMethod) Error() string {
-	return fmt.Sprintf("DeviceRetrievalMethod - no unmashaller for type %d", err.Type)
 }
 
 type RetrievalOptions interface{}

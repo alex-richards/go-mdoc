@@ -20,11 +20,16 @@ var (
 	decodeModeTaggedEncodedCBOR cbor.DecMode
 )
 
+var (
+	ErrorEmptyTaggedValue   = errors.New("empty tagged value")
+	ErrorEmptyUntaggedValue = errors.New("empty untagged value")
+)
+
 func init() {
 	ts := cbor.NewTagSet()
 	ts.Add(
 		cbor.TagOptions{DecTag: cbor.DecTagRequired, EncTag: cbor.EncTagRequired},
-		reflect.TypeOf(bstr{}),
+		reflect.TypeOf(bstr(nil)),
 		TagEncodedCBOR,
 	)
 
@@ -50,7 +55,7 @@ func (tec *TaggedEncodedCBOR) TaggedValue() ([]byte, error) {
 		return encodeModeTaggedEncodedCBOR.Marshal(tec.untaggedValue)
 	}
 
-	return nil, errors.New("TODO - TaggedValue - empty")
+	return nil, ErrorEmptyTaggedValue
 }
 
 func (tec *TaggedEncodedCBOR) UntaggedValue() ([]byte, error) {
@@ -67,7 +72,7 @@ func (tec *TaggedEncodedCBOR) UntaggedValue() ([]byte, error) {
 		return untaggedValue, nil
 	}
 
-	return nil, errors.New("TODO - UntaggedValue - empty")
+	return nil, ErrorEmptyUntaggedValue
 }
 
 func (tec *TaggedEncodedCBOR) MarshalCBOR() ([]byte, error) {

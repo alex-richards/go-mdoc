@@ -16,12 +16,22 @@ func (ra *ReaderAuth) UnmarshalCBOR(data []byte) error {
 	return cbor.Unmarshal(data, (*cose.UntaggedSign1Message)(ra))
 }
 
-type ReaderAuthenticationBytes TaggedEncodedCBOR
 type ReaderAuthentication struct {
 	_                    struct{} `cbor:",toarray"`
 	ReaderAuthentication string
 	SessionTranscript    SessionTranscript
 	ItemsRequestBytes    TaggedEncodedCBOR
+}
+
+func NewReaderAuthentication(
+	sessionTranscript SessionTranscript,
+	itemsRequestBytes TaggedEncodedCBOR,
+) *ReaderAuthentication {
+	return &ReaderAuthentication{
+		ReaderAuthentication: "ReaderAuthentication",
+		SessionTranscript:    sessionTranscript,
+		ItemsRequestBytes:    itemsRequestBytes,
+	}
 }
 
 type IssuerAuth cose.UntaggedSign1Message
@@ -40,8 +50,7 @@ type DeviceAuth struct {
 
 func (ia *IssuerAuth) MobileSecurityObjectBytes() (*TaggedEncodedCBOR, error) {
 	mobileSecurityObjectBytes := new(TaggedEncodedCBOR)
-	err := cbor.Unmarshal(ia.Payload, mobileSecurityObjectBytes)
-	if err != nil {
+	if err := cbor.Unmarshal(ia.Payload, mobileSecurityObjectBytes); err != nil {
 		return nil, err
 	}
 
@@ -60,8 +69,7 @@ func (ia *IssuerAuth) MobileSecurityObject() (*MobileSecurityObject, error) {
 	}
 
 	mobileSecurityObject := new(MobileSecurityObject)
-	err = cbor.Unmarshal(mobileSecurityObjectBytesUntagged, mobileSecurityObject)
-	if err != nil {
+	if err = cbor.Unmarshal(mobileSecurityObjectBytesUntagged, mobileSecurityObject); err != nil {
 		return nil, err
 	}
 

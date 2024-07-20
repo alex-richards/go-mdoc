@@ -1,8 +1,6 @@
 package mdoc
 
 import (
-	"errors"
-
 	"github.com/fxamacker/cbor/v2"
 )
 
@@ -54,10 +52,6 @@ type IssuerSignedItems map[NameSpace][]IssuerSignedItem
 func (ins IssuerNameSpaces) IssuerSignedItems() (IssuerSignedItems, error) {
 	issuerSignedItemss := make(IssuerSignedItems)
 	for nameSpace, issuerSignedItemBytess := range ins {
-		if issuerSignedItemBytess == nil {
-			return nil, errors.New("TODO")
-		}
-
 		issuerSignedItems := make([]IssuerSignedItem, len(issuerSignedItemBytess))
 		for i, issuerSignedItemBytes := range issuerSignedItemBytess {
 			issuerSignedItemBytesUntagged, err := issuerSignedItemBytes.UntaggedValue()
@@ -89,14 +83,14 @@ type DeviceSigned struct {
 	DeviceAuth      DeviceAuth        `cbor:"deviceAuth"`
 }
 
-func (ds *DeviceSigned) NameSpaces() (DeviceNameSpaces, error) {
+func (ds *DeviceSigned) NameSpaces() (*DeviceNameSpaces, error) {
 	nameSpacesBytesUntagged, err := ds.NameSpacesBytes.UntaggedValue()
 	if err != nil {
 		return nil, err
 	}
 
-	deviceNameSpaces := make(DeviceNameSpaces)
-	if err = cbor.Unmarshal(nameSpacesBytesUntagged, &deviceNameSpaces); err != nil {
+	deviceNameSpaces := new(DeviceNameSpaces)
+	if err = cbor.Unmarshal(nameSpacesBytesUntagged, deviceNameSpaces); err != nil {
 		return nil, err
 	}
 

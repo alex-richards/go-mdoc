@@ -25,9 +25,8 @@ func TestEncodedCBORTagged(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	errUntagged := cbor.Unmarshal(testStructBytes, &TaggedEncodedCBOR{})
-	if errUntagged == nil {
-		t.Fatal()
+	if errUntagged := cbor.Unmarshal(testStructBytes, &TaggedEncodedCBOR{}); errUntagged == nil {
+		t.Fatal("expected error")
 	}
 
 	taggedEncodedCBOR, err := NewTaggedEncodedCBOR(testStructBytes)

@@ -9,16 +9,12 @@ import (
 )
 
 func TestNewSessionEstablishment(t *testing.T) {
-	sessionEstablishment, err := NewSessionEstablishment(
+	_, err := NewSessionEstablishment(
 		EReaderKeyPublic,
 		[]byte{1, 2, 3, 4},
 	)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if sessionEstablishment == nil {
-		t.Fatal()
 	}
 }
 
@@ -44,8 +40,8 @@ func TestSessionEstablishmentCBORRoundTrip(t *testing.T) {
 	}
 
 	if diff := cmp.Diff(
-		sessionEstablishment,
-		sessionEstablishmentUnmarshalled,
+		&sessionEstablishment,
+		&sessionEstablishmentUnmarshalled,
 		cmp.FilterPath(func(p cmp.Path) bool {
 			return p.Last().Type() == reflect.TypeOf(TaggedEncodedCBOR{})
 		}, cmp.Ignore()),
@@ -55,22 +51,22 @@ func TestSessionEstablishmentCBORRoundTrip(t *testing.T) {
 }
 
 func TestSessionDataCBORRoundTrip(t *testing.T) {
-	sessionData := &SessionData{
+	sessionData := SessionData{
 		Data:   []byte{1, 2, 3, 4},
 		Status: SessionStatusSessionTermination,
 	}
 
-	sessionDataBytes, err := cbor.Marshal(sessionData)
+	sessionDataBytes, err := cbor.Marshal(&sessionData)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sessionDataUnmarshalled := new(SessionData)
-	if err = cbor.Unmarshal(sessionDataBytes, sessionDataUnmarshalled); err != nil {
+	var sessionDataUnmarshalled SessionData
+	if err = cbor.Unmarshal(sessionDataBytes, &sessionDataUnmarshalled); err != nil {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(sessionData, sessionDataUnmarshalled); diff != "" {
+	if diff := cmp.Diff(&sessionData, &sessionDataUnmarshalled); diff != "" {
 		t.Fatal(diff)
 	}
 }

@@ -168,17 +168,17 @@ func (se *SessionEncryption) Decrypt(cipherText []byte) ([]byte, error) {
 
 func (se *SessionEncryption) encryptNonce() []byte {
 	se.encryptionCounter += 1
-	nonce := make([]byte, 0, 12)
-	nonce = append(nonce, se.encryptionIndetifier...)
-	nonce = append(nonce, countToBytes(se.encryptionCounter)...)
+	nonce := make([]byte, 12)
+	copy(nonce, se.encryptionIndetifier)
+	copy(nonce[8:], countToBytes(se.encryptionCounter))
 	return nonce
 }
 
 func (se *SessionEncryption) decryptNonce() []byte {
 	se.decryptionCounter += 1
-	nonce := make([]byte, 0, 12)
-	nonce = append(nonce, se.decryptionIdentifier...)
-	nonce = append(nonce, countToBytes(se.decryptionCounter)...)
+	nonce := make([]byte, 12)
+	copy(nonce, se.decryptionIdentifier)
+	copy(nonce[8:], countToBytes(se.decryptionCounter))
 	return nonce
 }
 

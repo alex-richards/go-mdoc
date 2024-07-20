@@ -7,6 +7,11 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
+var (
+	ErrorUnreccognisedHandover = errors.New("unreccognised handover")
+	errorNotQRHandover         = errors.New("not a qr handover")
+)
+
 type SessionTranscript struct {
 	DeviceEngagementBytes TaggedEncodedCBOR
 	EReaderKeyBytes       TaggedEncodedCBOR
@@ -30,7 +35,7 @@ func (st *SessionTranscript) MarshalCBOR() ([]byte, error) {
 	case NFCHandover:
 		handoverBytes, err = cbor.Marshal(&handover)
 	default:
-		err = errors.New("TODO")
+		err = ErrorUnreccognisedHandover
 	}
 
 	if err != nil {
@@ -48,18 +53,15 @@ func (st *SessionTranscript) MarshalCBOR() ([]byte, error) {
 
 func (st *SessionTranscript) UnmarshalCBOR(data []byte) error {
 	var intermediateSessionTranscript intermediateSessionTranscript
-	err := cbor.Unmarshal(data, &intermediateSessionTranscript)
-	if err != nil {
+	if err := cbor.Unmarshal(data, &intermediateSessionTranscript); err != nil {
 		return err
 	}
 
-	st.DeviceEngagementBytes = intermediateSessionTranscript.DeviceEngagementBytes
-	st.EReaderKeyBytes = intermediateSessionTranscript.EReaderKeyBytes
-
 	{
 		var qrHandover QRHandover
-		err = cbor.Unmarshal(intermediateSessionTranscript.Handover, &qrHandover)
-		if err == nil {
+		if err := cbor.Unmarshal(intermediateSessionTranscript.Handover, &qrHandover); err == nil {
+			st.DeviceEngagementBytes = intermediateSessionTranscript.DeviceEngagementBytes
+			st.EReaderKeyBytes = intermediateSessionTranscript.EReaderKeyBytes
 			st.Handover = qrHandover
 			return nil
 		}
@@ -67,14 +69,15 @@ func (st *SessionTranscript) UnmarshalCBOR(data []byte) error {
 
 	{
 		var nfcHandover NFCHandover
-		err = cbor.Unmarshal(intermediateSessionTranscript.Handover, &nfcHandover)
-		if err == nil {
+		if err := cbor.Unmarshal(intermediateSessionTranscript.Handover, &nfcHandover); err == nil {
+			st.DeviceEngagementBytes = intermediateSessionTranscript.DeviceEngagementBytes
+			st.EReaderKeyBytes = intermediateSessionTranscript.EReaderKeyBytes
 			st.Handover = nfcHandover
 			return nil
 		}
 	}
 
-	return errors.New("TODO")
+	return ErrorUnreccognisedHandover
 }
 
 type Handover interface{}
@@ -86,7 +89,7 @@ func (qrh *QRHandover) MarshalCBOR() ([]byte, error) {
 }
 func (qrh *QRHandover) UnmarshalCBOR(data []byte) error {
 	if !bytes.Equal([]byte{22}, data) {
-		return errors.New("TODO")
+		return errorNotQRHandover
 	}
 	return nil
 }
