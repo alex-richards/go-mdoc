@@ -457,6 +457,11 @@ func TestDecodeDeviceResponse(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		_, err = document.IssuerSigned.IssuerAuth.MobileSecurityObject()
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		_, err = document.DeviceSigned.NameSpaces()
 		if err != nil {
 			t.Fatal(err)
