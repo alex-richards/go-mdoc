@@ -7,18 +7,16 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-type SessionTranscriptBytes TaggedEncodedCBOR
-
 type SessionTranscript struct {
-	DeviceEngagementBytes DeviceEngagementBytes
-	EReaderKeyBytes       EReaderKeyBytes
+	DeviceEngagementBytes TaggedEncodedCBOR
+	EReaderKeyBytes       TaggedEncodedCBOR
 	Handover              Handover
 }
 
 type intermediateSessionTranscript struct {
 	_                     struct{} `cbor:",toarray"`
-	DeviceEngagementBytes DeviceEngagementBytes
-	EReaderKeyBytes       EReaderKeyBytes
+	DeviceEngagementBytes TaggedEncodedCBOR
+	EReaderKeyBytes       TaggedEncodedCBOR
 	Handover              cbor.RawMessage
 }
 

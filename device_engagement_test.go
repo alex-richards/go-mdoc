@@ -1,6 +1,7 @@
 package mdoc
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
@@ -20,12 +21,18 @@ func TestNewDeviceEngagement(t *testing.T) {
 }
 
 func TestDeviceEngagementCBORRoundTrip(t *testing.T) {
+	eDeviceKeyBytes, err := NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	peripheralServerUUID := uuid.New()
+
 	deviceEngagement := &DeviceEngagement{
 		Version: "1.0",
 		Security: Security{
 			CipherSuiteIdentifier: 1,
-			EDeviceKeyBytes:       []byte{1, 2, 3, 4},
+			EDeviceKeyBytes:       *eDeviceKeyBytes,
 		},
 		DeviceRetrievalMethods: []DeviceRetrievalMethod{
 			{
@@ -52,17 +59,28 @@ func TestDeviceEngagementCBORRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(deviceEngagement, deviceEngagementUnmarshalled); diff != "" {
+	if diff := cmp.Diff(
+		deviceEngagement,
+		deviceEngagementUnmarshalled,
+		cmp.FilterPath(func(p cmp.Path) bool {
+			return p.Last().Type() == reflect.TypeOf(TaggedEncodedCBOR{})
+		}, cmp.Ignore()),
+	); diff != "" {
 		t.Fatal(diff)
 	}
 }
 
 func TestDeviceEngagementUnknownMethod(t *testing.T) {
-	deviceEngagement := &DeviceEngagement{
+	eDeviceKeyBytes, err := NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deviceEngagement := DeviceEngagement{
 		Version: "1.0",
 		Security: Security{
 			CipherSuiteIdentifier: 1,
-			EDeviceKeyBytes:       []byte{1, 2, 3, 4},
+			EDeviceKeyBytes:       *eDeviceKeyBytes,
 		},
 		DeviceRetrievalMethods: []DeviceRetrievalMethod{
 			{
@@ -72,15 +90,14 @@ func TestDeviceEngagementUnknownMethod(t *testing.T) {
 		},
 	}
 
-	deviceEngagementBytes, err := cbor.Marshal(deviceEngagement)
+	deviceEngagementBytes, err := cbor.Marshal(&deviceEngagement)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	deviceEngagementUnmarshalled := new(DeviceEngagement)
-	err = cbor.Unmarshal(deviceEngagementBytes, deviceEngagementUnmarshalled)
-	if err == nil {
-		t.Fatal()
+	var deviceEngagementUnmarshalled DeviceEngagement
+	if err = cbor.Unmarshal(deviceEngagementBytes, &deviceEngagementUnmarshalled); err == nil {
+		t.Fatal("expected error")
 	}
 
 	errUnreccognisedReterevalMethod := err.(*ErrorUnreccognisedReterevalMethod)

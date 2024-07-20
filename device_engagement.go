@@ -8,7 +8,6 @@ import (
 	"github.com/veraison/go-cose"
 )
 
-type DeviceEngagementBytes TaggedEncodedCBOR
 type DeviceEngagement struct {
 	Version                string                  `cbor:"0,keyasint"`
 	Security               Security                `cbor:"1,keyasint"`
@@ -31,10 +30,16 @@ func NewDeviceEngagement(eDeviceKey *cose.Key) (*DeviceEngagement, error) {
 }
 
 func (de *DeviceEngagement) EDeviceKey() (*cose.Key, error) {
-	eDeviceKey := new(cose.Key)
-	if err := cbor.Unmarshal(de.Security.EDeviceKeyBytes, eDeviceKey); err != nil {
+	eDeviceKeyBytesUntagged, err := de.Security.EDeviceKeyBytes.UntaggedValue()
+	if err != nil {
 		return nil, err
 	}
+
+	eDeviceKey := new(cose.Key)
+	if err := cbor.Unmarshal(eDeviceKeyBytesUntagged, eDeviceKey); err != nil {
+		return nil, err
+	}
+
 	return eDeviceKey, nil
 }
 
@@ -45,14 +50,19 @@ type Security struct {
 }
 
 func newSecurity(eDeviceKey *cose.Key) (*Security, error) {
-	eDeviceKeyBytes, err := cbor.Marshal(eDeviceKey)
+	eDeviceKeyBytesUntagged, err := cbor.Marshal(eDeviceKey)
+	if err != nil {
+		return nil, err
+	}
+
+	eDeviceKeyBytes, err := NewTaggedEncodedCBOR(eDeviceKeyBytesUntagged)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Security{
 		CipherSuiteIdentifier: 1,
-		EDeviceKeyBytes:       eDeviceKeyBytes,
+		EDeviceKeyBytes:       *eDeviceKeyBytes,
 	}, nil
 }
 

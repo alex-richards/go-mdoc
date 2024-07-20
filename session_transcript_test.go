@@ -1,6 +1,7 @@
 package mdoc
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
@@ -8,15 +9,21 @@ import (
 )
 
 func TestSessionTranscriptCBORRoundTrip(t *testing.T) {
+	deviceEngagementBytes, err := NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	eReaderKeyBytes := deviceEngagementBytes
+
 	sessionTranscripts := []SessionTranscript{
 		{
-			DeviceEngagementBytes: []byte{1, 2, 3, 4},
-			EReaderKeyBytes:       []byte{5, 6, 7, 8},
+			DeviceEngagementBytes: *deviceEngagementBytes,
+			EReaderKeyBytes:       *eReaderKeyBytes,
 			Handover:              QRHandover{},
 		},
 		{
-			DeviceEngagementBytes: []byte{1, 2, 3, 4},
-			EReaderKeyBytes:       []byte{5, 6, 7, 8},
+			DeviceEngagementBytes: *deviceEngagementBytes,
+			EReaderKeyBytes:       *eReaderKeyBytes,
 			Handover: NFCHandover{
 				HandoverSelect:  []byte{1, 2, 3, 4},
 				HandoverRequest: nil,
@@ -36,7 +43,13 @@ func TestSessionTranscriptCBORRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if diff := cmp.Diff(&sessionTranscript, &sessionTranscriptUnmarshalled); diff != "" {
+		if diff := cmp.Diff(
+			&sessionTranscript,
+			&sessionTranscriptUnmarshalled,
+			cmp.FilterPath(func(p cmp.Path) bool {
+				return p.Last().Type() == reflect.TypeOf(TaggedEncodedCBOR{})
+			}, cmp.Ignore()),
+		); diff != "" {
 			t.Fatal(diff)
 		}
 	}

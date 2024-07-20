@@ -313,8 +313,8 @@ func TestDecodeDeviceEngagement(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deviceEngagement := new(DeviceEngagement)
-	if err = cbor.Unmarshal(deviceEngagementBytes, deviceEngagement); err != nil {
+	var deviceEngagement DeviceEngagement
+	if err = cbor.Unmarshal(deviceEngagementBytes, &deviceEngagement); err != nil {
 		t.Fatal(err)
 	}
 
@@ -343,8 +343,8 @@ func TestDecodeSessionEstablishment(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sessionEstablishment := new(SessionEstablishment)
-	if err = cbor.Unmarshal(sessionEstablishmentBytes, sessionEstablishment); err != nil {
+	var sessionEstablishment SessionEstablishment
+	if err = cbor.Unmarshal(sessionEstablishmentBytes, &sessionEstablishment); err != nil {
 		t.Fatal(err)
 	}
 
@@ -373,8 +373,8 @@ func TestDecodeSessionData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sessionData := new(SessionData)
-	if err = cbor.Unmarshal(sessionDataBytes, sessionData); err != nil {
+	var sessionData SessionData
+	if err = cbor.Unmarshal(sessionDataBytes, &sessionData); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -425,8 +425,8 @@ func TestDecodeDeviceRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deviceRequest := new(DeviceRequest)
-	err = cbor.Unmarshal(deviceRequestBytes, deviceRequest)
+	var deviceRequest DeviceRequest
+	err = cbor.Unmarshal(deviceRequestBytes, &deviceRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -445,8 +445,8 @@ func TestDecodeDeviceResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deviceResponse := new(DeviceResponse)
-	err = cbor.Unmarshal(deviceResponseBytes, deviceResponse)
+	var deviceResponse DeviceResponse
+	err = cbor.Unmarshal(deviceResponseBytes, &deviceResponse)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -481,8 +481,13 @@ func TestDecodeSessionTranscript(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	sessionTranscriptBytesUntagged, err := sessionTranscriptBytes.UntaggedValue()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	var sessionTranscript SessionTranscript
-	err = cbor.Unmarshal(sessionTranscriptBytes, &sessionTranscript)
+	err = cbor.Unmarshal(sessionTranscriptBytesUntagged, &sessionTranscript)
 	if err != nil {
 		t.Fatal(err)
 	}
