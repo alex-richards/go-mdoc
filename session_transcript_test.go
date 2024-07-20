@@ -38,8 +38,7 @@ func TestSessionTranscriptCBORRoundTrip(t *testing.T) {
 		}
 
 		var sessionTranscriptUnmarshalled SessionTranscript
-		err = cbor.Unmarshal(sessionTranscriptBytes, &sessionTranscriptUnmarshalled)
-		if err != nil {
+		if err = cbor.Unmarshal(sessionTranscriptBytes, &sessionTranscriptUnmarshalled); err != nil {
 			t.Fatal(err)
 		}
 

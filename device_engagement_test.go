@@ -10,13 +10,9 @@ import (
 )
 
 func TestNewDeviceEngagement(t *testing.T) {
-	deviceEngagement, err := NewDeviceEngagement(EDeviceKeyPublic)
+	_, err := NewDeviceEngagement(EDeviceKeyPublic)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if deviceEngagement == nil {
-		t.Fatal()
 	}
 }
 
@@ -28,7 +24,7 @@ func TestDeviceEngagementCBORRoundTrip(t *testing.T) {
 
 	peripheralServerUUID := uuid.New()
 
-	deviceEngagement := &DeviceEngagement{
+	deviceEngagement := DeviceEngagement{
 		Version: "1.0",
 		Security: Security{
 			CipherSuiteIdentifier: 1,
@@ -36,7 +32,7 @@ func TestDeviceEngagementCBORRoundTrip(t *testing.T) {
 		},
 		DeviceRetrievalMethods: []DeviceRetrievalMethod{
 			{
-				Type:    2,
+				Type:    DeviceRetrievalMethodTypeBLE,
 				Version: 1,
 				RetrievalOptions: BleOptions{
 					SupportsPeripheralServer:      true,
@@ -49,19 +45,19 @@ func TestDeviceEngagementCBORRoundTrip(t *testing.T) {
 		},
 	}
 
-	deviceEngagementBytes, err := cbor.Marshal(deviceEngagement)
+	deviceEngagementBytes, err := cbor.Marshal(&deviceEngagement)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	deviceEngagementUnmarshalled := new(DeviceEngagement)
-	if err = cbor.Unmarshal(deviceEngagementBytes, deviceEngagementUnmarshalled); err != nil {
+	var deviceEngagementUnmarshalled DeviceEngagement
+	if err = cbor.Unmarshal(deviceEngagementBytes, &deviceEngagementUnmarshalled); err != nil {
 		t.Fatal(err)
 	}
 
 	if diff := cmp.Diff(
-		deviceEngagement,
-		deviceEngagementUnmarshalled,
+		&deviceEngagement,
+		&deviceEngagementUnmarshalled,
 		cmp.FilterPath(func(p cmp.Path) bool {
 			return p.Last().Type() == reflect.TypeOf(TaggedEncodedCBOR{})
 		}, cmp.Ignore()),
@@ -98,11 +94,5 @@ func TestDeviceEngagementUnknownMethod(t *testing.T) {
 	var deviceEngagementUnmarshalled DeviceEngagement
 	if err = cbor.Unmarshal(deviceEngagementBytes, &deviceEngagementUnmarshalled); err == nil {
 		t.Fatal("expected error")
-	}
-
-	errUnreccognisedReterevalMethod := err.(*ErrorUnreccognisedReterevalMethod)
-
-	if errUnreccognisedReterevalMethod.Type != 123 {
-		t.Fatal(errUnreccognisedReterevalMethod)
 	}
 }

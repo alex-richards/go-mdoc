@@ -7,7 +7,7 @@ import (
 	"github.com/veraison/go-cose"
 )
 
-var ErrorUnsupportedCurve = errors.New("Unsupported Curve")
+var ErrorUnsupportedCurve = errors.New("unsupported curve")
 
 func NewCOSEKeyFromECDHPublicKey(key ecdh.PublicKey) (*cose.Key, error) {
 	var coseAlg cose.Algorithm

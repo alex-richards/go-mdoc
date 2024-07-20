@@ -24,6 +24,6 @@ func TestKeyConversions(t *testing.T) {
 	}
 
 	if !bytes.Equal(privateKey.PublicKey().Bytes(), publicKey.Bytes()) {
-		t.Fail()
+		t.Fatal()
 	}
 }

@@ -417,6 +417,9 @@ func TestReaderSessionEncryption(t *testing.T) {
 	}
 
 	_, err = NewReaderSessionEncryption(skReader, skDevice)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestDecodeDeviceRequest(t *testing.T) {
@@ -426,8 +429,7 @@ func TestDecodeDeviceRequest(t *testing.T) {
 	}
 
 	var deviceRequest DeviceRequest
-	err = cbor.Unmarshal(deviceRequestBytes, &deviceRequest)
-	if err != nil {
+	if err = cbor.Unmarshal(deviceRequestBytes, &deviceRequest); err != nil {
 		t.Fatal(err)
 	}
 
@@ -446,8 +448,7 @@ func TestDecodeDeviceResponse(t *testing.T) {
 	}
 
 	var deviceResponse DeviceResponse
-	err = cbor.Unmarshal(deviceResponseBytes, &deviceResponse)
-	if err != nil {
+	if err = cbor.Unmarshal(deviceResponseBytes, &deviceResponse); err != nil {
 		t.Fatal(err)
 	}
 
@@ -476,8 +477,7 @@ func TestDecodeSessionTranscript(t *testing.T) {
 	}
 
 	var sessionTranscriptBytes TaggedEncodedCBOR
-	err = cbor.Unmarshal(sessionTranscriptTagged, &sessionTranscriptBytes)
-	if err != nil {
+	if err = cbor.Unmarshal(sessionTranscriptTagged, &sessionTranscriptBytes); err != nil {
 		t.Fatal(err)
 	}
 
