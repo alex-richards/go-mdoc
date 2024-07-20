@@ -1,6 +1,7 @@
 package mdoc
 
 import (
+	"errors"
 	"reflect"
 
 	"github.com/fxamacker/cbor/v2"
@@ -8,8 +9,11 @@ import (
 
 const TagEncodedCBOR = 24
 
-type TaggedEncodedCBOR []byte
-type taggedEncodedCBOR []byte
+type bstr []byte
+type TaggedEncodedCBOR struct {
+	taggedValue   bstr
+	untaggedValue bstr
+}
 
 var (
 	encodeModeTaggedEncodedCBOR cbor.EncMode
@@ -20,7 +24,7 @@ func init() {
 	ts := cbor.NewTagSet()
 	ts.Add(
 		cbor.TagOptions{DecTag: cbor.DecTagRequired, EncTag: cbor.EncTagRequired},
-		reflect.TypeOf(taggedEncodedCBOR{}),
+		reflect.TypeOf(bstr{}),
 		TagEncodedCBOR,
 	)
 
@@ -37,10 +41,61 @@ func init() {
 	}
 }
 
-func (ec *TaggedEncodedCBOR) MarshalCBOR() ([]byte, error) {
-	return encodeModeTaggedEncodedCBOR.Marshal((*taggedEncodedCBOR)(ec))
+func (tec *TaggedEncodedCBOR) TaggedValue() ([]byte, error) {
+	if tec.taggedValue != nil {
+		return tec.taggedValue, nil
+	}
+
+	if tec.untaggedValue != nil {
+		return encodeModeTaggedEncodedCBOR.Marshal(tec.untaggedValue)
+	}
+
+	return nil, errors.New("TODO - TaggedValue - empty")
 }
 
-func (ec *TaggedEncodedCBOR) UnmarshalCBOR(data []byte) error {
-	return decodeModeTaggedEncodedCBOR.Unmarshal(data, (*taggedEncodedCBOR)(ec))
+func (tec *TaggedEncodedCBOR) UntaggedValue() ([]byte, error) {
+	if tec.untaggedValue != nil {
+		return tec.untaggedValue, nil
+	}
+
+	if tec.taggedValue != nil {
+		var untaggedValue []byte
+		if err := decodeModeTaggedEncodedCBOR.Unmarshal(tec.taggedValue, untaggedValue); err != nil {
+			return nil, err
+		}
+
+		return untaggedValue, nil
+	}
+
+	return nil, errors.New("TODO - UntaggedValue - empty")
+}
+
+func (tec *TaggedEncodedCBOR) MarshalCBOR() ([]byte, error) {
+	return tec.TaggedValue()
+}
+
+func (tec *TaggedEncodedCBOR) UnmarshalCBOR(taggedValue []byte) error {
+	var untaggedValue []byte
+	err := decodeModeTaggedEncodedCBOR.Unmarshal(taggedValue, &untaggedValue)
+	if err != nil {
+		return err
+	}
+
+	tec.taggedValue = taggedValue
+	tec.untaggedValue = untaggedValue
+	return nil
+}
+
+func NewTaggedEncodedCBOR(untaggedValue []byte) (*TaggedEncodedCBOR, error) {
+	taggedEncodedCBOR := TaggedEncodedCBOR{
+		untaggedValue: untaggedValue,
+	}
+
+	var err error
+	taggedEncodedCBOR.taggedValue, err = taggedEncodedCBOR.TaggedValue()
+	if err != nil {
+		return nil, err
+	}
+
+	return &taggedEncodedCBOR, nil
 }

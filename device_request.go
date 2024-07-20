@@ -15,20 +15,24 @@ func NewDeviceRequest(docRequests []DocRequest) *DeviceRequest {
 }
 
 type DocRequest struct {
-	ItemsRequestBytes ItemsRequestBytes `cbor:"itemsRequest"`
+	ItemsRequestBytes TaggedEncodedCBOR `cbor:"itemsRequest"`
 	ReaderAuth        ReaderAuth        `cbor:"readerAuth"`
 }
 
 func (dr *DocRequest) ItemsRequest() (*ItemsRequest, error) {
-	itemsRequest := new(ItemsRequest)
-	err := cbor.Unmarshal(dr.ItemsRequestBytes, itemsRequest)
+	itemsRequestBytesUntagged, err := dr.ItemsRequestBytes.UntaggedValue()
 	if err != nil {
 		return nil, err
 	}
+
+	itemsRequest := new(ItemsRequest)
+	if err := cbor.Unmarshal(itemsRequestBytesUntagged, itemsRequest); err != nil {
+		return nil, err
+	}
+
 	return itemsRequest, nil
 }
 
-type ItemsRequestBytes TaggedEncodedCBOR
 type ItemsRequest struct {
 	DocType     DocType        `cbor:"docType"`
 	NameSpaces  NameSpaces     `cbor:"nameSpaces"`

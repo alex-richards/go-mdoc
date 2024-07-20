@@ -17,13 +17,18 @@ type SessionEstablishment struct {
 }
 
 func NewSessionEstablishment(eReaderKey *cose.Key, data []byte) (*SessionEstablishment, error) {
-	eReaderKeyBytes, err := cbor.Marshal(eReaderKey)
+	eReaderKeyBytesUntagged, err := cbor.Marshal(eReaderKey)
+	if err != nil {
+		return nil, err
+	}
+
+	eReaderKeyBytes, err := NewTaggedEncodedCBOR(eReaderKeyBytesUntagged)
 	if err != nil {
 		return nil, err
 	}
 
 	return &SessionEstablishment{
-		EReaderKeyBytes: eReaderKeyBytes,
+		EReaderKeyBytes: *eReaderKeyBytes,
 		Data:            data,
 	}, nil
 }
@@ -34,9 +39,15 @@ type SessionData struct {
 }
 
 func (se *SessionEstablishment) EReaderKey() (*cose.Key, error) {
-	eReaderKey := new(cose.Key)
-	if err := cbor.Unmarshal(se.EReaderKeyBytes, eReaderKey); err != nil {
+	eReaderKeyBytesUntagged, err := se.EReaderKeyBytes.UntaggedValue()
+	if err != nil {
 		return nil, err
 	}
+
+	eReaderKey := new(cose.Key)
+	if err := cbor.Unmarshal(eReaderKeyBytesUntagged, eReaderKey); err != nil {
+		return nil, err
+	}
+
 	return eReaderKey, nil
 }

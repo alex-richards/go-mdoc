@@ -48,7 +48,7 @@ type IssuerSigned struct {
 }
 
 type IssuerNameSpaces map[NameSpace]IssuerSignedItemBytess
-type IssuerSignedItemBytess []IssuerSignedItemBytes
+type IssuerSignedItemBytess []TaggedEncodedCBOR
 type IssuerSignedItems map[NameSpace][]IssuerSignedItem
 
 func (ins IssuerNameSpaces) IssuerSignedItems() (IssuerSignedItems, error) {
@@ -57,13 +57,19 @@ func (ins IssuerNameSpaces) IssuerSignedItems() (IssuerSignedItems, error) {
 		if issuerSignedItemBytess == nil {
 			return nil, errors.New("TODO")
 		}
+
 		issuerSignedItems := make([]IssuerSignedItem, len(issuerSignedItemBytess))
 		for i, issuerSignedItemBytes := range issuerSignedItemBytess {
-			var issuerSignedItem IssuerSignedItem
-			err := cbor.Unmarshal(issuerSignedItemBytes, &issuerSignedItem)
+			issuerSignedItemBytesUntagged, err := issuerSignedItemBytes.UntaggedValue()
 			if err != nil {
 				return nil, err
 			}
+
+			var issuerSignedItem IssuerSignedItem
+			if err = cbor.Unmarshal(issuerSignedItemBytesUntagged, &issuerSignedItem); err != nil {
+				return nil, err
+			}
+
 			issuerSignedItems[i] = issuerSignedItem
 		}
 		issuerSignedItemss[nameSpace] = issuerSignedItems
@@ -71,7 +77,6 @@ func (ins IssuerNameSpaces) IssuerSignedItems() (IssuerSignedItems, error) {
 	return issuerSignedItemss, nil
 }
 
-type IssuerSignedItemBytes TaggedEncodedCBOR
 type IssuerSignedItem struct {
 	DigestID          uint                  `cbor:"digestID"`
 	Random            []byte                `cbor:"random"`
@@ -80,20 +85,24 @@ type IssuerSignedItem struct {
 }
 
 type DeviceSigned struct {
-	NameSpacesBytes DeviceNameSpacesBytes `cbor:"nameSpaces"`
-	DeviceAuth      DeviceAuth            `cbor:"deviceAuth"`
+	NameSpacesBytes TaggedEncodedCBOR `cbor:"nameSpaces"`
+	DeviceAuth      DeviceAuth        `cbor:"deviceAuth"`
 }
 
 func (ds *DeviceSigned) NameSpaces() (DeviceNameSpaces, error) {
-	deviceNameSpaces := make(DeviceNameSpaces)
-	err := cbor.Unmarshal(ds.NameSpacesBytes, &deviceNameSpaces)
+	nameSpacesBytesUntagged, err := ds.NameSpacesBytes.UntaggedValue()
 	if err != nil {
 		return nil, err
 	}
+
+	deviceNameSpaces := make(DeviceNameSpaces)
+	if err = cbor.Unmarshal(nameSpacesBytesUntagged, &deviceNameSpaces); err != nil {
+		return nil, err
+	}
+
 	return deviceNameSpaces, nil
 }
 
-type DeviceNameSpacesBytes TaggedEncodedCBOR
 type DeviceNameSpaces map[NameSpace]DeviceSignedItems
 type DeviceSignedItems map[DataElementIdentifier]DataElementValue
 

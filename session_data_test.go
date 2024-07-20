@@ -1,6 +1,7 @@
 package mdoc
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
@@ -22,22 +23,33 @@ func TestNewSessionEstablishment(t *testing.T) {
 }
 
 func TestSessionEstablishmentCBORRoundTrip(t *testing.T) {
-	sessionEstablishment := &SessionEstablishment{
-		EReaderKeyBytes: []byte{1, 2, 3, 4},
-		Data:            []byte{5, 6, 7, 8},
-	}
-
-	sessionEstablishmentBytes, err := cbor.Marshal(sessionEstablishment)
+	eReaderKeyBytes, err := NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sessionEstablishmentUnmarshalled := new(SessionEstablishment)
-	if err = cbor.Unmarshal(sessionEstablishmentBytes, sessionEstablishmentUnmarshalled); err != nil {
+	sessionEstablishment := SessionEstablishment{
+		EReaderKeyBytes: *eReaderKeyBytes,
+		Data:            []byte{5, 6, 7, 8},
+	}
+
+	sessionEstablishmentBytes, err := cbor.Marshal(&sessionEstablishment)
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(sessionEstablishment, sessionEstablishmentUnmarshalled); diff != "" {
+	var sessionEstablishmentUnmarshalled SessionEstablishment
+	if err = cbor.Unmarshal(sessionEstablishmentBytes, &sessionEstablishmentUnmarshalled); err != nil {
+		t.Fatal(err)
+	}
+
+	if diff := cmp.Diff(
+		sessionEstablishment,
+		sessionEstablishmentUnmarshalled,
+		cmp.FilterPath(func(p cmp.Path) bool {
+			return p.Last().Type() == reflect.TypeOf(TaggedEncodedCBOR{})
+		}, cmp.Ignore()),
+	); diff != "" {
 		t.Fatal(diff)
 	}
 }

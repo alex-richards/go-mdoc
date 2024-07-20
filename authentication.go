@@ -7,9 +7,6 @@ import (
 	"github.com/veraison/go-cose"
 )
 
-type EDeviceKeyBytes TaggedEncodedCBOR
-type EReaderKeyBytes TaggedEncodedCBOR
-
 type ReaderAuth cose.UntaggedSign1Message
 
 func (ra *ReaderAuth) MarshalCBOR() ([]byte, error) {
@@ -24,7 +21,7 @@ type ReaderAuthentication struct {
 	_                    struct{} `cbor:",toarray"`
 	ReaderAuthentication string
 	SessionTranscript    SessionTranscript
-	ItemsRequestBytes    ItemsRequestBytes
+	ItemsRequestBytes    TaggedEncodedCBOR
 }
 
 type IssuerAuth cose.UntaggedSign1Message
@@ -41,19 +38,29 @@ type DeviceAuth struct {
 	// DeviceMAC DeviceMAC
 }
 
-func (ia *IssuerAuth) MobileSecurityObjectBytes() MobileSecurityObjectBytes {
-	return ia.Payload
+func (ia *IssuerAuth) MobileSecurityObjectBytes() (*TaggedEncodedCBOR, error) {
+	mobileSecurityObjectBytes := new(TaggedEncodedCBOR)
+	err := cbor.Unmarshal(ia.Payload, mobileSecurityObjectBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return mobileSecurityObjectBytes, nil
 }
 
 func (ia *IssuerAuth) MobileSecurityObject() (*MobileSecurityObject, error) {
-	var mobileSecurityObjectBytes MobileSecurityObjectBytes
-	err := cbor.Unmarshal(ia.Payload, &mobileSecurityObjectBytes)
+	mobileSecurityObjectBytes, err := ia.MobileSecurityObjectBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	mobileSecurityObjectBytesUntagged, err := mobileSecurityObjectBytes.UntaggedValue()
 	if err != nil {
 		return nil, err
 	}
 
 	mobileSecurityObject := new(MobileSecurityObject)
-	err = cbor.Unmarshal(mobileSecurityObjectBytes, mobileSecurityObject)
+	err = cbor.Unmarshal(mobileSecurityObjectBytesUntagged, mobileSecurityObject)
 	if err != nil {
 		return nil, err
 	}
@@ -71,8 +78,6 @@ func (ds *DeviceSignature) UnmarshalCBOR(data []byte) error {
 }
 
 // type DeviceMAC cose.Mac0Message
-
-type MobileSecurityObjectBytes TaggedEncodedCBOR
 
 type MobileSecurityObject struct {
 	Version         string          `cbor:"version"`
