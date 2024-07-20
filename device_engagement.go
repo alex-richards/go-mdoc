@@ -8,6 +8,7 @@ import (
 	"github.com/veraison/go-cose"
 )
 
+type DeviceEngagementBytes TaggedEncodedCBOR
 type DeviceEngagement struct {
 	Version                string                  `cbor:"0,keyasint"`
 	Security               Security                `cbor:"1,keyasint"`
