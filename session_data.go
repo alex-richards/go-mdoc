@@ -5,12 +5,6 @@ import (
 	"github.com/veraison/go-cose"
 )
 
-const (
-	SessionStatusErrorSessionEncryption uint = 10
-	SessionStatusErrorCBORDecoding      uint = 11
-	SessionStatusSessionTermination     uint = 20
-)
-
 type SessionEstablishment struct {
 	EReaderKeyBytes TaggedEncodedCBOR `cbor:"eReaderKey"`
 	Data            []byte            `cbor:"data"`
@@ -33,11 +27,6 @@ func NewSessionEstablishment(eReaderKey *cose.Key, data []byte) (*SessionEstabli
 	}, nil
 }
 
-type SessionData struct {
-	Data   []byte `cbor:"data"`
-	Status uint   `cbor:"status"`
-}
-
 func (se *SessionEstablishment) EReaderKey() (*cose.Key, error) {
 	eReaderKeyBytesUntagged, err := se.EReaderKeyBytes.UntaggedValue()
 	if err != nil {
@@ -51,3 +40,16 @@ func (se *SessionEstablishment) EReaderKey() (*cose.Key, error) {
 
 	return eReaderKey, nil
 }
+
+type SessionData struct {
+	Data   []byte        `cbor:"data"`
+	Status SessionStatus `cbor:"status"`
+}
+
+type SessionStatus uint
+
+const (
+	SessionStatusErrorSessionEncryption SessionStatus = 10
+	SessionStatusErrorCBORDecoding      SessionStatus = 11
+	SessionStatusSessionTermination     SessionStatus = 20
+)

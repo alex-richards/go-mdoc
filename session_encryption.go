@@ -12,15 +12,15 @@ import (
 )
 
 const (
-	SKReaderLength = 32
-	SKReaderInfo   = "SKReader"
+	skReaderLength = 32
+	skReaderInfo   = "SKReader"
 
-	SKDeviceLength = 32
-	SKDeviceInfo   = "SKDevice"
+	skDeviceLength = 32
+	skDeviceInfo   = "SKDevice"
 )
 
-var ReaderIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 0}
-var DeviceIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 1}
+var readerIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 0}
+var deviceIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 1}
 
 func GenerateESessionPrivateKey(curve ecdh.Curve) (*ecdh.PrivateKey, error) {
 	if curve == nil {
@@ -38,8 +38,8 @@ func SKReader(
 		ePrivateKey,
 		ePublicKey,
 		sessionTranscriptBytes,
-		SKReaderInfo,
-		SKReaderLength,
+		skReaderInfo,
+		skReaderLength,
 	)
 }
 
@@ -52,8 +52,8 @@ func SKDevice(
 		ePrivateKey,
 		ePublicKey,
 		sessionTranscriptBytes,
-		SKDeviceInfo,
-		SKDeviceLength,
+		skDeviceInfo,
+		skDeviceLength,
 	)
 }
 
@@ -106,9 +106,9 @@ func NewReaderSessionEncryption(
 ) (*SessionEncryption, error) {
 	return newSessionEncryption(
 		skReader,
-		ReaderIdentifier,
+		readerIdentifier,
 		skDevice,
-		DeviceIdentifier,
+		deviceIdentifier,
 	)
 }
 
@@ -118,9 +118,9 @@ func NewDeviceSessionEncryption(
 ) (*SessionEncryption, error) {
 	return newSessionEncryption(
 		skDevice,
-		DeviceIdentifier,
+		deviceIdentifier,
 		skReader,
-		ReaderIdentifier,
+		readerIdentifier,
 	)
 }
 

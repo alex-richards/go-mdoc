@@ -7,6 +7,8 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
+const cborNull = 22
+
 var (
 	ErrorUnreccognisedHandover = errors.New("unreccognised handover")
 	errorNotQRHandover         = errors.New("not a qr handover")
@@ -80,15 +82,15 @@ func (st *SessionTranscript) UnmarshalCBOR(data []byte) error {
 	return ErrorUnreccognisedHandover
 }
 
-type Handover interface{}
+type Handover any
 
 type QRHandover struct{}
 
 func (qrh *QRHandover) MarshalCBOR() ([]byte, error) {
-	return []byte{22}, nil
+	return []byte{cborNull}, nil
 }
 func (qrh *QRHandover) UnmarshalCBOR(data []byte) error {
-	if !bytes.Equal([]byte{22}, data) {
+	if !bytes.Equal([]byte{cborNull}, data) {
 		return errorNotQRHandover
 	}
 	return nil
