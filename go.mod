@@ -4,7 +4,7 @@ go 1.22.4
 
 require (
 	github.com/fxamacker/cbor/v2 v2.7.0
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.6.0 // test
 	github.com/google/uuid v1.6.0
 	github.com/veraison/go-cose v1.1.1-0.20240126165338-2300d5c96dbd
 	golang.org/x/crypto v0.25.0

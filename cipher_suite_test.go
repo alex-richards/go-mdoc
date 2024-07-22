@@ -13,12 +13,12 @@ func TestKeyConversions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	coseKey, err := NewCOSEKeyFromECDHPublicKey(*privateKey.PublicKey())
+	coseKey, err := CipherSuite1.ECDHToCOSE(privateKey.PublicKey())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	publicKey, err := NewECDHPublicKeyFromCOSEKey(*coseKey)
+	publicKey, err := CipherSuite1.COSEToECDH(coseKey)
 	if err != nil {
 		t.Fatal(err)
 	}

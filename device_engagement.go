@@ -8,12 +8,6 @@ import (
 	"github.com/veraison/go-cose"
 )
 
-const (
-	DeviceRetrievalMethodTypeNFC       = 1
-	DeviceRetrievalMethodTypeBLE       = 2
-	DeviceRetrievalMethodTypeWiFiAware = 3
-)
-
 var ErrorUnreccognisedReterevalMethod = errors.New("unreccognised retreival method")
 
 type DeviceEngagement struct {
@@ -76,16 +70,24 @@ type Security struct {
 	EDeviceKeyBytes       TaggedEncodedCBOR
 }
 
+type DeviceRetrievalMethodType uint
+
+const (
+	DeviceRetrievalMethodTypeNFC       DeviceRetrievalMethodType = 1
+	DeviceRetrievalMethodTypeBLE       DeviceRetrievalMethodType = 2
+	DeviceRetrievalMethodTypeWiFiAware DeviceRetrievalMethodType = 3
+)
+
 type DeviceRetrievalMethod struct {
 	_                struct{} `cbor:",toarray"`
-	Type             uint
+	Type             DeviceRetrievalMethodType
 	Version          uint
 	RetrievalOptions RetrievalOptions
 }
 
 type intermediateDeviceRetreievalMethod struct {
 	_                struct{} `cbor:",toarray"`
-	Type             uint
+	Type             DeviceRetrievalMethodType
 	Version          uint
 	RetrievalOptions cbor.RawMessage
 }

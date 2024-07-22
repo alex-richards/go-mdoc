@@ -7,33 +7,6 @@ import (
 	"github.com/veraison/go-cose"
 )
 
-type ReaderAuth cose.UntaggedSign1Message
-
-func (ra *ReaderAuth) MarshalCBOR() ([]byte, error) {
-	return cbor.Marshal((*cose.UntaggedSign1Message)(ra))
-}
-func (ra *ReaderAuth) UnmarshalCBOR(data []byte) error {
-	return cbor.Unmarshal(data, (*cose.UntaggedSign1Message)(ra))
-}
-
-type ReaderAuthentication struct {
-	_                    struct{} `cbor:",toarray"`
-	ReaderAuthentication string
-	SessionTranscript    SessionTranscript
-	ItemsRequestBytes    TaggedEncodedCBOR
-}
-
-func NewReaderAuthentication(
-	sessionTranscript SessionTranscript,
-	itemsRequestBytes TaggedEncodedCBOR,
-) *ReaderAuthentication {
-	return &ReaderAuthentication{
-		ReaderAuthentication: "ReaderAuthentication",
-		SessionTranscript:    sessionTranscript,
-		ItemsRequestBytes:    itemsRequestBytes,
-	}
-}
-
 type IssuerAuth cose.UntaggedSign1Message
 
 func (ia *IssuerAuth) MarshalCBOR() ([]byte, error) {
@@ -41,11 +14,6 @@ func (ia *IssuerAuth) MarshalCBOR() ([]byte, error) {
 }
 func (ia *IssuerAuth) UnmarshalCBOR(data []byte) error {
 	return cbor.Unmarshal(data, (*cose.UntaggedSign1Message)(ia))
-}
-
-type DeviceAuth struct {
-	DeviceSignature DeviceSignature
-	// DeviceMAC DeviceMAC
 }
 
 func (ia *IssuerAuth) MobileSecurityObjectBytes() (*TaggedEncodedCBOR, error) {
@@ -76,17 +44,6 @@ func (ia *IssuerAuth) MobileSecurityObject() (*MobileSecurityObject, error) {
 	return mobileSecurityObject, nil
 }
 
-type DeviceSignature cose.UntaggedSign1Message
-
-func (ds *DeviceSignature) MarshalCBOR() ([]byte, error) {
-	return cbor.Marshal((*cose.UntaggedSign1Message)(ds))
-}
-func (ds *DeviceSignature) UnmarshalCBOR(data []byte) error {
-	return cbor.Unmarshal(data, (*cose.UntaggedSign1Message)(ds))
-}
-
-// type DeviceMAC cose.Mac0Message
-
 type MobileSecurityObject struct {
 	Version         string          `cbor:"version"`
 	DigestAlgorithm DigestAlgorithm `cbor:"digestAlgorithm"`
@@ -98,18 +55,22 @@ type MobileSecurityObject struct {
 
 type DigestAlgorithm string
 
+const (
+	DigestAlgorithmSHA256 DigestAlgorithm = "SHA-256"
+	DigestAlgorithmSHA384 DigestAlgorithm = "SHA-384"
+	DigestAlgorithmSHA512 DigestAlgorithm = "SHA-512"
+)
+
 type ValueDigests map[NameSpace]DigestIDs
 type DigestIDs map[DigestID]Digest
 type DigestID uint
 type Digest []byte
 
 type DeviceKeyInfo struct {
-	DeviceKey         DeviceKey          `cbor:"deviceKey"`
+	DeviceKey         cose.Key           `cbor:"deviceKey"`
 	KeyAuthorizations *KeyAuthorizations `cbor:"keyAuthorizations,omitempty"`
 	KeyInfo           *KeyInfo           `cbor:"keyInfo,omitEmpty"`
 }
-
-type DeviceKey cose.Key
 
 type KeyAuthorizations struct {
 	NameSpaces   *AuthorizedNameSpaces   `cbor:"nameSpaces,omitempty"`

@@ -7,7 +7,7 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-const TagEncodedCBOR = 24
+const tagEncodedCBOR = 24
 
 type bstr []byte
 type TaggedEncodedCBOR struct {
@@ -30,7 +30,7 @@ func init() {
 	ts.Add(
 		cbor.TagOptions{DecTag: cbor.DecTagRequired, EncTag: cbor.EncTagRequired},
 		reflect.TypeOf(bstr(nil)),
-		TagEncodedCBOR,
+		tagEncodedCBOR,
 	)
 
 	var err error

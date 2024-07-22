@@ -38,7 +38,7 @@ func TestEncodedCBORTagged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(testStructBytesTagged[0:2], []byte{0xd8, TagEncodedCBOR}) {
+	if !bytes.Equal(testStructBytesTagged[0:2], []byte{0xd8, tagEncodedCBOR}) {
 		t.Fatal(hex.EncodeToString(testStructBytesTagged))
 	}
 
