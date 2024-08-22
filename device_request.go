@@ -20,13 +20,8 @@ type DocRequest struct {
 }
 
 func (dr *DocRequest) ItemsRequest() (*ItemsRequest, error) {
-	itemsRequestBytesUntagged, err := dr.ItemsRequestBytes.UntaggedValue()
-	if err != nil {
-		return nil, err
-	}
-
 	itemsRequest := new(ItemsRequest)
-	if err := cbor.Unmarshal(itemsRequestBytesUntagged, itemsRequest); err != nil {
+	if err := cbor.Unmarshal(dr.ItemsRequestBytes.UntaggedValue, itemsRequest); err != nil {
 		return nil, err
 	}
 

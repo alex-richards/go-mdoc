@@ -7,33 +7,37 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-const tagEncodedCBOR = 24
+const (
+	cborMajorTypeFloatNoContent = 7 << 5
+)
 
-type bstr []byte
-type TaggedEncodedCBOR struct {
-	taggedValue   bstr
-	untaggedValue bstr
-}
+const (
+	cborNull = cborMajorTypeFloatNoContent | 22
+)
+
+const (
+	cborTagEncodedCBOR = 24
+)
+
+var (
+	ErrEmptyTaggedValue = errors.New("empty tagged value")
+)
 
 var (
 	encodeModeTaggedEncodedCBOR cbor.EncMode
 	decodeModeTaggedEncodedCBOR cbor.DecMode
 )
 
-var (
-	ErrorEmptyTaggedValue   = errors.New("empty tagged value")
-	ErrorEmptyUntaggedValue = errors.New("empty untagged value")
-)
-
 func init() {
 	ts := cbor.NewTagSet()
-	ts.Add(
+	err := ts.Add(
 		cbor.TagOptions{DecTag: cbor.DecTagRequired, EncTag: cbor.EncTagRequired},
 		reflect.TypeOf(bstr(nil)),
-		tagEncodedCBOR,
+		cborTagEncodedCBOR,
 	)
-
-	var err error
+	if err != nil {
+		panic(err)
+	}
 
 	encodeModeTaggedEncodedCBOR, err = cbor.EncOptions{}.EncModeWithTags(ts)
 	if err != nil {
@@ -46,61 +50,39 @@ func init() {
 	}
 }
 
-func (tec *TaggedEncodedCBOR) TaggedValue() ([]byte, error) {
-	if tec.taggedValue != nil {
-		return tec.taggedValue, nil
-	}
+type bstr []byte
 
-	if tec.untaggedValue != nil {
-		return encodeModeTaggedEncodedCBOR.Marshal(tec.untaggedValue)
-	}
-
-	return nil, ErrorEmptyTaggedValue
-}
-
-func (tec *TaggedEncodedCBOR) UntaggedValue() ([]byte, error) {
-	if tec.untaggedValue != nil {
-		return tec.untaggedValue, nil
-	}
-
-	if tec.taggedValue != nil {
-		var untaggedValue []byte
-		if err := decodeModeTaggedEncodedCBOR.Unmarshal(tec.taggedValue, untaggedValue); err != nil {
-			return nil, err
-		}
-
-		return untaggedValue, nil
-	}
-
-	return nil, ErrorEmptyUntaggedValue
-}
-
-func (tec *TaggedEncodedCBOR) MarshalCBOR() ([]byte, error) {
-	return tec.TaggedValue()
-}
-
-func (tec *TaggedEncodedCBOR) UnmarshalCBOR(taggedValue []byte) error {
-	var untaggedValue []byte
-	err := decodeModeTaggedEncodedCBOR.Unmarshal(taggedValue, &untaggedValue)
-	if err != nil {
-		return err
-	}
-
-	tec.taggedValue = taggedValue
-	tec.untaggedValue = untaggedValue
-	return nil
+type TaggedEncodedCBOR struct {
+	TaggedValue   bstr
+	UntaggedValue bstr
 }
 
 func NewTaggedEncodedCBOR(untaggedValue []byte) (*TaggedEncodedCBOR, error) {
-	taggedEncodedCBOR := TaggedEncodedCBOR{
-		untaggedValue: untaggedValue,
-	}
-
-	var err error
-	taggedEncodedCBOR.taggedValue, err = taggedEncodedCBOR.TaggedValue()
+	taggedValue, err := encodeModeTaggedEncodedCBOR.Marshal((bstr)(untaggedValue))
 	if err != nil {
 		return nil, err
 	}
 
-	return &taggedEncodedCBOR, nil
+	return &TaggedEncodedCBOR{
+		TaggedValue:   taggedValue,
+		UntaggedValue: untaggedValue,
+	}, nil
+}
+
+func (tec *TaggedEncodedCBOR) MarshalCBOR() ([]byte, error) {
+	if tec.TaggedValue == nil {
+		return nil, ErrEmptyTaggedValue
+	}
+	return tec.TaggedValue, nil
+}
+
+func (tec *TaggedEncodedCBOR) UnmarshalCBOR(taggedValue []byte) error {
+	var untaggedValue bstr
+	if err := decodeModeTaggedEncodedCBOR.Unmarshal(taggedValue, &untaggedValue); err != nil {
+		return err
+	}
+
+	tec.TaggedValue = taggedValue
+	tec.UntaggedValue = untaggedValue
+	return nil
 }

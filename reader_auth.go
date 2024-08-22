@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	ErrorMissingAlgorithmHeader = errors.New("missing algorithm header")
-	ErrorUnsupportedAlgorithm   = errors.New("unsupported algorithm")
-	ErrorEmptyChain             = errors.New("empty chan")
+	ErrMissingAlgorithmHeader = errors.New("missing algorithm header")
+	ErrUnsupportedAlgorithm   = errors.New("unsupported algorithm")
+	ErrEmptyChain             = errors.New("empty chan")
 )
 
 type ReaderAuth cose.UntaggedSign1Message
@@ -27,84 +27,79 @@ func (ra *ReaderAuth) UnmarshalCBOR(data []byte) error {
 
 func (ra *ReaderAuth) Verify(
 	rootCertificates []*x509.Certificate,
-	now time.Time,
+	now time.Time, // TODO check validity
 	readerAuthenticationBytes *TaggedEncodedCBOR,
-) (bool, error) {
+) error {
 	signatureAlgorithm, err := ra.Headers.Protected.Algorithm()
 	if err != nil {
-		return false, ErrorMissingAlgorithmHeader
+		return ErrMissingAlgorithmHeader
 	}
 
 	var supportedCurve *Curve
 	for _, candidateCurve := range CipherSuite1.Curves {
 		if candidateCurve.coseAlg == signatureAlgorithm && candidateCurve.supportsReaderAuth {
-			supportedCurve = &candidateCurve
+			supportedCurve = candidateCurve
 			break
 		}
 	}
 	if supportedCurve == nil {
-		return false, ErrorUnsupportedAlgorithm
+		return ErrUnsupportedAlgorithm
 	}
 
 	chain, err := X509Chain(ra.Headers.Unprotected)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	chainLen := len(chain)
 	if chainLen == 0 {
-		return false, ErrorEmptyChain
+		return ErrEmptyChain
 	}
 
-	{
-		var prevCertificate *x509.Certificate
-	Chain:
-		for _, certificate := range chain {
-			if prevCertificate == nil {
-				for _, rootCertificate := range rootCertificates {
-					err = certificate.CheckSignatureFrom(rootCertificate)
-					if err == nil {
-						continue Chain
-					}
-				}
-				return false, err
-			} else {
-				err = certificate.CheckSignatureFrom(prevCertificate)
-				if err == nil {
-					return false, err
-				}
-			}
-			prevCertificate = certificate
+	firstCertificate := chain[0]
+	for _, rootCertificate := range rootCertificates {
+		err = firstCertificate.CheckSignatureFrom(rootCertificate)
+		if err == nil {
+			break // found our root cert
 		}
 	}
+	if err != nil {
+		return err
+	}
 
-	signingCertificate := chain[chainLen-1]
+	signingCertificate := firstCertificate
+	for _, certificate := range chain[1:] {
+		err = certificate.CheckSignatureFrom(signingCertificate)
+		if err != nil {
+			return err
+		}
+		signingCertificate = certificate
+	}
 
 	publicKey, ok := signingCertificate.PublicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return false, ErrorUnsupportedAlgorithm
+		return ErrUnsupportedAlgorithm
 	}
 
 	if publicKey.Curve != supportedCurve.ecdsaCurve {
-		return false, ErrorUnsupportedAlgorithm
+		return ErrUnsupportedAlgorithm
 	}
 
 	verifier, err := cose.NewVerifier(signatureAlgorithm, publicKey)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	// gross, no external payload support, and no SigStructure not exported
-	ra.Payload = readerAuthenticationBytes.taggedValue
-	err = (*cose.Sign1Message)(ra).Verify(
+	err = (*cose.Sign1Message)(ra).VerifyDetached(
+		readerAuthenticationBytes.TaggedValue,
 		[]byte{},
 		verifier,
 	)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return true, nil
+	return nil
 }
 
 type ReaderAuthentication struct {

@@ -28,13 +28,8 @@ func NewSessionEstablishment(eReaderKey *cose.Key, data []byte) (*SessionEstabli
 }
 
 func (se *SessionEstablishment) EReaderKey() (*cose.Key, error) {
-	eReaderKeyBytesUntagged, err := se.EReaderKeyBytes.UntaggedValue()
-	if err != nil {
-		return nil, err
-	}
-
 	eReaderKey := new(cose.Key)
-	if err := cbor.Unmarshal(eReaderKeyBytesUntagged, eReaderKey); err != nil {
+	if err := cbor.Unmarshal(se.EReaderKeyBytes.UntaggedValue, eReaderKey); err != nil {
 		return nil, err
 	}
 

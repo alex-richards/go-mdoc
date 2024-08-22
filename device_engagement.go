@@ -2,13 +2,16 @@ package mdoc
 
 import (
 	"errors"
+	"io"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/uuid"
 	"github.com/veraison/go-cose"
 )
 
-var ErrorUnreccognisedReterevalMethod = errors.New("unreccognised retreival method")
+var (
+	ErrUnrecognisedRetrievalMethod = errors.New("unrecognized retrieval method")
+)
 
 type DeviceEngagement struct {
 	Version                string                  `cbor:"0,keyasint"`
@@ -16,7 +19,7 @@ type DeviceEngagement struct {
 	DeviceRetrievalMethods []DeviceRetrievalMethod `cbor:"2,keyasint,omitempty"`
 }
 
-func NewDeviceEngagement(eDeviceKey *cose.Key) (*DeviceEngagement, error) {
+func NewDeviceEngagement(rand io.Reader, eDeviceKey *cose.Key) (*DeviceEngagement, error) {
 	eDeviceKeyBytesUntagged, err := cbor.Marshal(eDeviceKey)
 	if err != nil {
 		return nil, err
@@ -27,19 +30,26 @@ func NewDeviceEngagement(eDeviceKey *cose.Key) (*DeviceEngagement, error) {
 		return nil, err
 	}
 
-	peripheralServerUUID := uuid.New()
-	centralClientUUID := uuid.New()
+	peripheralServerUUID, err := uuid.NewRandomFromReader(rand)
+	if err != nil {
+		return nil, err
+	}
+	centralClientUUID, err := uuid.NewRandomFromReader(rand)
+	if err != nil {
+		return nil, err
+	}
+
 	return &DeviceEngagement{
 		"1.0",
 		Security{
-			CipherSuiteIdentifier: 1,
+			CipherSuiteIdentifier: CipherSuite1.Version,
 			EDeviceKeyBytes:       *eDeviceKeyBytes,
 		},
 		[]DeviceRetrievalMethod{
 			{
 				Type:    DeviceRetrievalMethodTypeBLE,
 				Version: 1,
-				RetrievalOptions: BleOptions{
+				RetrievalOptions: BLEOptions{
 					SupportsPeripheralServer: true,
 					SupportsCentralClient:    true,
 					PeripheralServerUUID:     &peripheralServerUUID,
@@ -51,13 +61,8 @@ func NewDeviceEngagement(eDeviceKey *cose.Key) (*DeviceEngagement, error) {
 }
 
 func (de *DeviceEngagement) EDeviceKey() (*cose.Key, error) {
-	eDeviceKeyBytesUntagged, err := de.Security.EDeviceKeyBytes.UntaggedValue()
-	if err != nil {
-		return nil, err
-	}
-
 	eDeviceKey := new(cose.Key)
-	if err := cbor.Unmarshal(eDeviceKeyBytesUntagged, eDeviceKey); err != nil {
+	if err := cbor.Unmarshal(de.Security.EDeviceKeyBytes.UntaggedValue, eDeviceKey); err != nil {
 		return nil, err
 	}
 
@@ -79,49 +84,113 @@ const (
 )
 
 type DeviceRetrievalMethod struct {
-	_                struct{} `cbor:",toarray"`
 	Type             DeviceRetrievalMethodType
 	Version          uint
 	RetrievalOptions RetrievalOptions
 }
 
-type intermediateDeviceRetreievalMethod struct {
+type intermediateDeviceRetrievalMethod struct {
 	_                struct{} `cbor:",toarray"`
 	Type             DeviceRetrievalMethodType
 	Version          uint
 	RetrievalOptions cbor.RawMessage
 }
 
+func (drm *DeviceRetrievalMethod) MarshalCBOR() ([]byte, error) {
+	var err error
+
+	var retrievalOptionsBytes []byte
+	switch retrievalOptions := drm.RetrievalOptions.(type) {
+	case WifiOptions:
+		retrievalOptionsBytes, err = cbor.Marshal(&retrievalOptions)
+		if err != nil {
+			return nil, err
+		}
+
+	case BLEOptions:
+		retrievalOptionsBytes, err = cbor.Marshal(&retrievalOptions)
+		if err != nil {
+			return nil, err
+		}
+
+	case NFCOptions:
+		retrievalOptionsBytes, err = cbor.Marshal(&retrievalOptions)
+		if err != nil {
+			return nil, err
+		}
+
+	default:
+		return nil, ErrUnrecognisedRetrievalMethod
+	}
+
+	intermediateDeviceRetrievalMethod := intermediateDeviceRetrievalMethod{
+		Type:             drm.Type,
+		Version:          drm.Version,
+		RetrievalOptions: retrievalOptionsBytes,
+	}
+	return cbor.Marshal(&intermediateDeviceRetrievalMethod)
+}
+
 func (drm *DeviceRetrievalMethod) UnmarshalCBOR(data []byte) error {
-	var intermediateDeviceRetreievalMethod intermediateDeviceRetreievalMethod
-	if err := cbor.Unmarshal(data, &intermediateDeviceRetreievalMethod); err != nil {
+	var err error
+
+	var intermediateDeviceRetrievalMethod intermediateDeviceRetrievalMethod
+	if err = cbor.Unmarshal(data, &intermediateDeviceRetrievalMethod); err != nil {
 		return err
 	}
 
-	switch intermediateDeviceRetreievalMethod.Type {
-	case DeviceRetrievalMethodTypeBLE:
-		var bleOptions BleOptions
-		if err := cbor.Unmarshal(intermediateDeviceRetreievalMethod.RetrievalOptions, &bleOptions); err != nil {
+	var retrievalOptions RetrievalOptions
+	switch intermediateDeviceRetrievalMethod.Type {
+	case DeviceRetrievalMethodTypeWiFiAware:
+		var wifiOptions WifiOptions
+		if err = cbor.Unmarshal(intermediateDeviceRetrievalMethod.RetrievalOptions, &wifiOptions); err != nil {
 			return err
 		}
-		drm.RetrievalOptions = bleOptions
+		retrievalOptions = wifiOptions
+
+	case DeviceRetrievalMethodTypeBLE:
+		var bleOptions BLEOptions
+		if err = cbor.Unmarshal(intermediateDeviceRetrievalMethod.RetrievalOptions, &bleOptions); err != nil {
+			return err
+		}
+		retrievalOptions = bleOptions
+
+	case DeviceRetrievalMethodTypeNFC:
+		var nfcOptions NFCOptions
+		if err = cbor.Unmarshal(intermediateDeviceRetrievalMethod.RetrievalOptions, &nfcOptions); err != nil {
+			return err
+		}
+		retrievalOptions = nfcOptions
 
 	default:
-		return ErrorUnreccognisedReterevalMethod
+		return ErrUnrecognisedRetrievalMethod
 	}
 
-	drm.Type = intermediateDeviceRetreievalMethod.Type
-	drm.Version = intermediateDeviceRetreievalMethod.Version
+	drm.Type = intermediateDeviceRetrievalMethod.Type
+	drm.Version = intermediateDeviceRetrievalMethod.Version
+	drm.RetrievalOptions = retrievalOptions
 
 	return nil
 }
 
-type RetrievalOptions interface{}
+type RetrievalOptions any
 
-type BleOptions struct {
+type WifiOptions struct {
+	PassPhraseInfoPassPhrase  string `cbor:"0,keyasint,omitempty"`
+	ChannelInfoOperatingClass uint   `cbor:"1,keyasint,omitempty"`
+	ChannelInfoChannelNumber  uint   `cbor:"2,keyasint,omitempty"`
+	BandInfoSupportedBands    []byte `cbor:"3,keyasint,omitempty"`
+}
+
+type BLEOptions struct {
 	SupportsPeripheralServer      bool       `cbor:"0,keyasint"`
 	SupportsCentralClient         bool       `cbor:"1,keyasint"`
 	PeripheralServerUUID          *uuid.UUID `cbor:"10,keyasint,omitempty"`
 	CentralClientUUID             *uuid.UUID `cbor:"11,keyasint,omitempty"`
 	PeripheralServerDeviceAddress []byte     `cbor:"20,keyasint,omitempty"`
+}
+
+type NFCOptions struct {
+	MaxLengthCommandData  uint `cbor:"0,keyasint"`
+	MaxLengthResponseData uint `cbor:"1,keyasint"`
 }

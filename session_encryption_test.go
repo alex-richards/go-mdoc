@@ -7,13 +7,13 @@ import (
 	"testing"
 )
 
-func TestSKEquality(t *testing.T) {
-	eReaderKey, err := ecdh.P256().GenerateKey(rand.Reader)
+func TestSK_Equality(t *testing.T) {
+	eReaderKey, err := GenerateESessionPrivateKey(rand.Reader, ecdh.P256())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	eDeviceKey, err := ecdh.P256().GenerateKey(rand.Reader)
+	eDeviceKey, err := GenerateESessionPrivateKey(rand.Reader, ecdh.P256())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestSKEquality(t *testing.T) {
 	}
 }
 
-func TestSessionEncryptionRoundTrip(t *testing.T) {
+func TestSessionEncryption_RoundTrip(t *testing.T) {
 	keySize := 256 / 8
 
 	skReader := make([]byte, keySize)

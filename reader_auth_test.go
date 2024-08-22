@@ -9,7 +9,7 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-func TestReaderAuthVerify(t *testing.T) {
+func TestReaderAuth_Verify(t *testing.T) {
 	readerRootEncoded, err := hex.DecodeString(ReaderRootHex)
 	if err != nil {
 		t.Fatal(err)
@@ -31,13 +31,8 @@ func TestReaderAuthVerify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sessionTranscriptUntagged, err := sessionTranscriptBytes.UntaggedValue()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	var sessionTranscript SessionTranscript
-	err = cbor.Unmarshal(sessionTranscriptUntagged, &sessionTranscript)
+	err = cbor.Unmarshal(sessionTranscriptBytes.UntaggedValue, &sessionTranscript)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,16 +68,9 @@ func TestReaderAuthVerify(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		verified, err := docRequest.ReaderAuth.Verify(
-			[]*x509.Certificate{readerRoot},
-			now,
-			readerAuthenticationBytes,
-		)
+		err = docRequest.ReaderAuth.Verify([]*x509.Certificate{readerRoot}, now, readerAuthenticationBytes)
 		if err != nil {
 			t.Fatal(err)
-		}
-		if !verified {
-			t.Fatal()
 		}
 	}
 }

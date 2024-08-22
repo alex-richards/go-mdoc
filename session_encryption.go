@@ -5,7 +5,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ecdh"
-	"crypto/rand"
 	"io"
 
 	"golang.org/x/crypto/hkdf"
@@ -22,11 +21,11 @@ const (
 var readerIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 0}
 var deviceIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 1}
 
-func GenerateESessionPrivateKey(curve ecdh.Curve) (*ecdh.PrivateKey, error) {
+func GenerateESessionPrivateKey(rand io.Reader, curve ecdh.Curve) (*ecdh.PrivateKey, error) {
 	if curve == nil {
 		curve = ecdh.P256()
 	}
-	return curve.GenerateKey(rand.Reader)
+	return curve.GenerateKey(rand)
 }
 
 func SKReader(
@@ -93,7 +92,7 @@ func sk(
 
 type SessionEncryption struct {
 	encryptionCipher     cipher.AEAD
-	encryptionIndetifier []byte
+	encryptionIdentifier []byte
 	encryptionCounter    uint32
 	decryptionCipher     cipher.AEAD
 	decryptionIdentifier []byte
@@ -150,7 +149,7 @@ func newSessionEncryption(
 
 	return &SessionEncryption{
 		encryptionCipher:     encryptionCipher,
-		encryptionIndetifier: encryptionIdentifier,
+		encryptionIdentifier: encryptionIdentifier,
 		encryptionCounter:    0,
 		decryptionCipher:     decryptionCipher,
 		decryptionIdentifier: decryptionIdentifier,
@@ -167,15 +166,15 @@ func (se *SessionEncryption) Decrypt(cipherText []byte) ([]byte, error) {
 }
 
 func (se *SessionEncryption) encryptNonce() []byte {
-	se.encryptionCounter += 1
+	se.encryptionCounter++
 	nonce := make([]byte, 12)
-	copy(nonce, se.encryptionIndetifier)
+	copy(nonce, se.encryptionIdentifier)
 	copy(nonce[8:], countToBytes(se.encryptionCounter))
 	return nonce
 }
 
 func (se *SessionEncryption) decryptNonce() []byte {
-	se.decryptionCounter += 1
+	se.decryptionCounter++
 	nonce := make([]byte, 12)
 	copy(nonce, se.decryptionIdentifier)
 	copy(nonce[8:], countToBytes(se.decryptionCounter))

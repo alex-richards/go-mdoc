@@ -1,14 +1,21 @@
 package mdoc
 
 import (
-	"reflect"
-	"testing"
-
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/go-cmp/cmp"
+	"reflect"
+	"testing"
 )
 
-func TestSessionTranscriptCBORRoundTrip(t *testing.T) {
+func TestSessionTranscript_MarshalCBOR(t *testing.T) {
+	t.Fatal("TODO") // TODO
+}
+
+func TestSessionTranscript_UnmarshalCBOR(t *testing.T) {
+	t.Fatal("TODO") // TODO
+}
+
+func TestSessionTranscript_CBOR_RoundTrip(t *testing.T) {
 	deviceEngagementBytes, err := NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
 	if err != nil {
 		t.Fatal(err)

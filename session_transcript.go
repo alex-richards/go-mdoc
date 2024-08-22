@@ -3,15 +3,11 @@ package mdoc
 import (
 	"bytes"
 	"errors"
-
 	"github.com/fxamacker/cbor/v2"
 )
 
-const cborNull = 22
-
 var (
-	ErrorUnreccognisedHandover = errors.New("unreccognised handover")
-	errorNotQRHandover         = errors.New("not a qr handover")
+	ErrUnrecognizedHandover = errors.New("unrecognized handover")
 )
 
 type SessionTranscript struct {
@@ -34,14 +30,16 @@ func (st *SessionTranscript) MarshalCBOR() ([]byte, error) {
 	switch handover := st.Handover.(type) {
 	case QRHandover:
 		handoverBytes, err = cbor.Marshal(&handover)
+		if err != nil {
+			return nil, err
+		}
 	case NFCHandover:
 		handoverBytes, err = cbor.Marshal(&handover)
+		if err != nil {
+			return nil, err
+		}
 	default:
-		err = ErrorUnreccognisedHandover
-	}
-
-	if err != nil {
-		return nil, err
+		return nil, ErrUnrecognizedHandover
 	}
 
 	intermediateSessionTranscript := intermediateSessionTranscript{
@@ -54,14 +52,16 @@ func (st *SessionTranscript) MarshalCBOR() ([]byte, error) {
 }
 
 func (st *SessionTranscript) UnmarshalCBOR(data []byte) error {
+	var err error
+
 	var intermediateSessionTranscript intermediateSessionTranscript
-	if err := cbor.Unmarshal(data, &intermediateSessionTranscript); err != nil {
+	if err = cbor.Unmarshal(data, &intermediateSessionTranscript); err != nil {
 		return err
 	}
 
 	{
 		var qrHandover QRHandover
-		if err := cbor.Unmarshal(intermediateSessionTranscript.Handover, &qrHandover); err == nil {
+		if err = cbor.Unmarshal(intermediateSessionTranscript.Handover, &qrHandover); err == nil {
 			st.DeviceEngagementBytes = intermediateSessionTranscript.DeviceEngagementBytes
 			st.EReaderKeyBytes = intermediateSessionTranscript.EReaderKeyBytes
 			st.Handover = qrHandover
@@ -71,7 +71,7 @@ func (st *SessionTranscript) UnmarshalCBOR(data []byte) error {
 
 	{
 		var nfcHandover NFCHandover
-		if err := cbor.Unmarshal(intermediateSessionTranscript.Handover, &nfcHandover); err == nil {
+		if err = cbor.Unmarshal(intermediateSessionTranscript.Handover, &nfcHandover); err == nil {
 			st.DeviceEngagementBytes = intermediateSessionTranscript.DeviceEngagementBytes
 			st.EReaderKeyBytes = intermediateSessionTranscript.EReaderKeyBytes
 			st.Handover = nfcHandover
@@ -79,7 +79,7 @@ func (st *SessionTranscript) UnmarshalCBOR(data []byte) error {
 		}
 	}
 
-	return ErrorUnreccognisedHandover
+	return ErrUnrecognizedHandover
 }
 
 type Handover any
@@ -91,7 +91,7 @@ func (qrh *QRHandover) MarshalCBOR() ([]byte, error) {
 }
 func (qrh *QRHandover) UnmarshalCBOR(data []byte) error {
 	if !bytes.Equal([]byte{cborNull}, data) {
-		return errorNotQRHandover
+		return errors.New("not a qr handover")
 	}
 	return nil
 }

@@ -18,7 +18,11 @@ func TestNewSessionEstablishment(t *testing.T) {
 	}
 }
 
-func TestSessionEstablishmentCBORRoundTrip(t *testing.T) {
+func TestSessionEstablishment_EReaderKey(t *testing.T) {
+	t.Fatal("TODO") // TODO
+}
+
+func TestSessionEstablishment_CBOR_RoundTrip(t *testing.T) {
 	eReaderKeyBytes, err := NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
 	if err != nil {
 		t.Fatal(err)
@@ -50,7 +54,7 @@ func TestSessionEstablishmentCBORRoundTrip(t *testing.T) {
 	}
 }
 
-func TestSessionDataCBORRoundTrip(t *testing.T) {
+func TestSessionData_CBOR_RoundTrip(t *testing.T) {
 	sessionData := SessionData{
 		Data:   []byte{1, 2, 3, 4},
 		Status: SessionStatusSessionTermination,

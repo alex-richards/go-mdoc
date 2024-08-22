@@ -56,13 +56,8 @@ func (ins IssuerNameSpaces) IssuerSignedItems() (IssuerSignedItems, error) {
 	for nameSpace, issuerSignedItemBytess := range ins {
 		issuerSignedItems := make([]IssuerSignedItem, len(issuerSignedItemBytess))
 		for i, issuerSignedItemBytes := range issuerSignedItemBytess {
-			issuerSignedItemBytesUntagged, err := issuerSignedItemBytes.UntaggedValue()
-			if err != nil {
-				return nil, err
-			}
-
 			var issuerSignedItem IssuerSignedItem
-			if err = cbor.Unmarshal(issuerSignedItemBytesUntagged, &issuerSignedItem); err != nil {
+			if err := cbor.Unmarshal(issuerSignedItemBytes.UntaggedValue, &issuerSignedItem); err != nil {
 				return nil, err
 			}
 
@@ -86,13 +81,8 @@ type DeviceSigned struct {
 }
 
 func (ds *DeviceSigned) NameSpaces() (*DeviceNameSpaces, error) {
-	nameSpacesBytesUntagged, err := ds.NameSpacesBytes.UntaggedValue()
-	if err != nil {
-		return nil, err
-	}
-
 	deviceNameSpaces := new(DeviceNameSpaces)
-	if err = cbor.Unmarshal(nameSpacesBytesUntagged, deviceNameSpaces); err != nil {
+	if err := cbor.Unmarshal(ds.NameSpacesBytes.UntaggedValue, deviceNameSpaces); err != nil {
 		return nil, err
 	}
 

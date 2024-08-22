@@ -7,6 +7,10 @@ import (
 	"github.com/veraison/go-cose"
 )
 
+var (
+	ErrUnrecognisedHeaderType = errors.New("unrecognised type for header")
+)
+
 func X509Chain(from cose.UnprotectedHeader) ([]*x509.Certificate, error) {
 	x509ChainHeader := from[cose.HeaderLabelX5Chain]
 
@@ -29,6 +33,6 @@ func X509Chain(from cose.UnprotectedHeader) ([]*x509.Certificate, error) {
 		}
 		return certs, nil
 	default:
-		return nil, errors.New("TODO - header type wrong")
+		return nil, ErrUnrecognisedHeaderType
 	}
 }

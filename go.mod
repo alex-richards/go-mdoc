@@ -7,7 +7,9 @@ require (
 	github.com/google/go-cmp v0.6.0 // test
 	github.com/google/uuid v1.6.0
 	github.com/veraison/go-cose v1.1.1-0.20240126165338-2300d5c96dbd
-	golang.org/x/crypto v0.25.0
-	github.com/x448/float16 v0.8.4 // indirect
+	golang.org/x/crypto v0.26.0
 )
 
+require github.com/x448/float16 v0.8.4 // indirect
+
+replace github.com/veraison/go-cose => ../go-cose/

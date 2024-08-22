@@ -3,6 +3,7 @@ package mdoc
 import (
 	"bytes"
 	"crypto/ecdh"
+	"crypto/x509"
 	"encoding/hex"
 	"testing"
 
@@ -267,13 +268,33 @@ const (
 		"806a07f8b5388a332d92c189a7bf293ee1f543405ae6824d6673746174757300"
 )
 
-var EDeviceKeyPublic *cose.Key
-var EReaderKeyPublic *cose.Key
+var (
+	IACA *x509.Certificate
+)
 
-var EDeviceKey *ecdh.PrivateKey
-var EReaderKey *ecdh.PrivateKey
+var (
+	EDeviceKeyPublic *cose.Key
+	EReaderKeyPublic *cose.Key
+)
+
+var (
+	EDeviceKey *ecdh.PrivateKey
+	EReaderKey *ecdh.PrivateKey
+)
 
 func init() {
+	{
+		iacaDer, err := hex.DecodeString(IACAHex)
+		if err != nil {
+			panic(err)
+		}
+
+		IACA, err = x509.ParseCertificate(iacaDer)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	{
 		x, err := hex.DecodeString(EDeviceKeyX)
 		if err != nil {
@@ -503,14 +524,8 @@ func TestDecodeSessionTranscript(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sessionTranscriptBytesUntagged, err := sessionTranscriptBytes.UntaggedValue()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	var sessionTranscript SessionTranscript
-	err = cbor.Unmarshal(sessionTranscriptBytesUntagged, &sessionTranscript)
-	if err != nil {
+	if err = cbor.Unmarshal(sessionTranscriptBytes.UntaggedValue, &sessionTranscript); err != nil {
 		t.Fatal(err)
 	}
 }

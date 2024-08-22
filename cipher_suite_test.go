@@ -2,16 +2,13 @@ package mdoc
 
 import (
 	"bytes"
-	"crypto/ecdh"
-	"crypto/rand"
 	"testing"
 )
 
-func TestKeyConversions(t *testing.T) {
-	privateKey, err := ecdh.P256().GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestCipherSuite_KeyConversions_RoundTrip(t *testing.T) {
+	rand := DeterministicRand{1, 2, 3, 4}
+
+	privateKey := NewTestECDHKey(t, rand)
 
 	coseKey, err := CipherSuite1.ECDHToCOSE(privateKey.PublicKey())
 	if err != nil {

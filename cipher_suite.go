@@ -14,7 +14,7 @@ var (
 
 var CipherSuite1 = CipherSuite{
 	Version: 1,
-	Curves: map[string]Curve{
+	Curves: map[string]*Curve{
 		"P265": {
 			coseAlg:            cose.AlgorithmES256,
 			coseCurve:          cose.CurveP256,
@@ -40,8 +40,8 @@ var CipherSuite1 = CipherSuite{
 }
 
 type CipherSuite struct {
-	Version uint
-	Curves  map[string]Curve
+	Version int
+	Curves  map[string]*Curve
 }
 
 type Curve struct {
@@ -55,40 +55,34 @@ type Curve struct {
 }
 
 func (cs *CipherSuite) ECDHToCOSE(key *ecdh.PublicKey) (*cose.Key, error) {
-	var curve *Curve
-	for _, c := range cs.Curves {
-		if c.ecdhCurve == key.Curve() {
-			curve = &c
+	keyCurve := key.Curve()
+
+	for _, curve := range cs.Curves {
+		if curve.ecdhCurve == keyCurve {
+			bytes := key.Bytes()[1:]
+			center := len(bytes) / 2
+			return cose.NewKeyEC2(curve.coseAlg, bytes[:center], bytes[center:], nil)
 		}
 	}
-	if curve == nil {
-		return nil, ErrorUnsupportedCurve
-	}
 
-	bytes := key.Bytes()[1:]
-	center := len(bytes) / 2
-
-	return cose.NewKeyEC2(curve.coseAlg, bytes[:center], bytes[center:], nil)
+	return nil, ErrorUnsupportedCurve
 }
 
 func (cs *CipherSuite) COSEToECDH(key *cose.Key) (*ecdh.PublicKey, error) {
 	c, x, y, _ := key.EC2()
 
-	var curve *Curve
-	for _, candidateCurve := range cs.Curves {
-		if candidateCurve.coseAlg == key.Algorithm && candidateCurve.coseCurve == c {
-			curve = &candidateCurve
+	for _, curve := range cs.Curves {
+		if curve.coseAlg == key.Algorithm && curve.coseCurve == c {
+			lenX := len(x)
+			point := make([]byte, 1+lenX+len(y))
+			point[0] = 0x04
+
+			copy(point[1:], x)
+			copy(point[1+lenX:], y)
+
+			return curve.ecdhCurve.NewPublicKey(point)
 		}
 	}
-	if curve == nil {
-		return nil, ErrorUnsupportedCurve
-	}
 
-	lenX := len(x)
-	point := make([]byte, 1+lenX+len(y))
-	point[0] = 0x04
-	copy(point[1:], x)
-	copy(point[1+lenX:], y)
-
-	return curve.ecdhCurve.NewPublicKey(point)
+	return nil, ErrorUnsupportedCurve
 }

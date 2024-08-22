@@ -31,13 +31,8 @@ func (ia *IssuerAuth) MobileSecurityObject() (*MobileSecurityObject, error) {
 		return nil, err
 	}
 
-	mobileSecurityObjectBytesUntagged, err := mobileSecurityObjectBytes.UntaggedValue()
-	if err != nil {
-		return nil, err
-	}
-
 	mobileSecurityObject := new(MobileSecurityObject)
-	if err = cbor.Unmarshal(mobileSecurityObjectBytesUntagged, mobileSecurityObject); err != nil {
+	if err = cbor.Unmarshal(mobileSecurityObjectBytes.UntaggedValue, mobileSecurityObject); err != nil {
 		return nil, err
 	}
 
