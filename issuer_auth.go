@@ -1,6 +1,8 @@
 package mdoc
 
 import (
+	"crypto/ecdsa"
+	"crypto/x509"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -14,6 +16,60 @@ func (ia *IssuerAuth) MarshalCBOR() ([]byte, error) {
 }
 func (ia *IssuerAuth) UnmarshalCBOR(data []byte) error {
 	return cbor.Unmarshal(data, (*cose.UntaggedSign1Message)(ia))
+}
+
+func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time) error {
+	signatureAlgorithm, err := ia.Headers.Protected.Algorithm()
+	if err != nil {
+		return ErrMissingAlgorithmHeader
+	}
+
+	curve, err := CipherSuite1.findCurveFromCOSEAlgorithm(signatureAlgorithm)
+	if err != nil {
+		return err
+	}
+
+	chain, err := x509Chain(ia.Headers.Unprotected)
+	if err != nil {
+		return err
+	}
+
+	issuerAuthCertificate, err := verifyChain(
+		rootCertificates,
+		chain,
+		now,
+		nil, // TODO
+		nil, // TODO
+		nil, // TODO
+	)
+	if err != nil {
+		return err
+	}
+
+	publicKey, ok := issuerAuthCertificate.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return ErrUnsupportedAlgorithm
+	}
+
+	if publicKey.Curve != curve.curveElliptic {
+		return ErrUnsupportedAlgorithm
+	}
+
+	verifier, err := cose.NewVerifier(signatureAlgorithm, publicKey)
+	if err != nil {
+		return err
+	}
+
+	mobileSecurityObjectBytes, err := ia.MobileSecurityObjectBytes()
+	if err != nil {
+		return err
+	}
+
+	return (*cose.Sign1Message)(ia).VerifyDetached(
+		mobileSecurityObjectBytes.TaggedValue,
+		[]byte{},
+		verifier,
+	)
 }
 
 func (ia *IssuerAuth) MobileSecurityObjectBytes() (*TaggedEncodedCBOR, error) {
@@ -61,8 +117,18 @@ type DigestIDs map[DigestID]Digest
 type DigestID uint
 type Digest []byte
 
+type DeviceKey cose.Key
+
+func (dk *DeviceKey) MarshalCBOR() ([]byte, error) {
+	return cbor.Marshal((*cose.Key)(dk))
+}
+
+func (dk *DeviceKey) UnmarshalCBOR(data []byte) error {
+	return cbor.Unmarshal(data, (*cose.Key)(dk))
+}
+
 type DeviceKeyInfo struct {
-	DeviceKey         cose.Key           `cbor:"deviceKey"`
+	DeviceKey         *DeviceKey         `cbor:"deviceKey"`
 	KeyAuthorizations *KeyAuthorizations `cbor:"keyAuthorizations,omitempty"`
 	KeyInfo           *KeyInfo           `cbor:"keyInfo,omitEmpty"`
 }

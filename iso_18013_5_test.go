@@ -428,7 +428,7 @@ func TestReaderSessionEncryption(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	eDeviceKey, err := CipherSuite1.COSEToECDH(EDeviceKeyPublic)
+	eDeviceKey, err := CipherSuite1.coseToECDH(EDeviceKeyPublic)
 	if err != nil {
 		t.Fatal(err)
 	}

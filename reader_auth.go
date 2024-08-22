@@ -30,75 +30,35 @@ func (ra *ReaderAuth) UnmarshalCBOR(data []byte) error {
 }
 
 func (ra *ReaderAuth) Verify(
-	rootCertificates []*x509.Certificate,
-	now time.Time, // TODO check validity
 	readerAuthenticationBytes *TaggedEncodedCBOR,
+	rootCertificates []*x509.Certificate,
+	now time.Time,
 ) error {
 	signatureAlgorithm, err := ra.Headers.Protected.Algorithm()
 	if err != nil {
 		return ErrMissingAlgorithmHeader
 	}
 
-	var supportedCurve *Curve
-	for _, candidateCurve := range CipherSuite1.Curves {
-		if candidateCurve.coseAlg == signatureAlgorithm && candidateCurve.supportsReaderAuth {
-			supportedCurve = candidateCurve
-			break
-		}
-	}
-	if supportedCurve == nil {
-		return ErrUnsupportedAlgorithm
-	}
-
-	chain, err := X509Chain(ra.Headers.Unprotected)
+	curve, err := CipherSuite1.findCurveFromCOSEAlgorithm(signatureAlgorithm)
 	if err != nil {
 		return err
 	}
-	if len(chain) == 0 {
-		return ErrNoRootCertificates
+
+	chain, err := x509Chain(ra.Headers.Unprotected)
+	if err != nil {
+		return err
 	}
 
-	chainLen := len(chain)
-	if chainLen == 0 {
-		return ErrEmptyChain
-	}
-
-	var rootCertificate *x509.Certificate
-	var previousCertificate *x509.Certificate
-
-	{
-		firstCertificate := chain[0]
-		for _, candidateRootCertificate := range rootCertificates {
-			if err = checkReaderAuthIntermediateCertificate(now, firstCertificate, candidateRootCertificate); err == nil {
-				rootCertificate = candidateRootCertificate
-				break
-			}
-		}
-		if rootCertificate == nil {
-			return ErrInvalidReaderAuthCertificate
-		}
-		previousCertificate = firstCertificate
-	}
-
-	{
-		for _, certificate := range chain[1:] {
-			err = checkReaderAuthIntermediateCertificate(now, certificate, previousCertificate)
-			if err != nil {
-				return err
-			}
-			previousCertificate = certificate
-		}
-	}
-
-	readerAuthCertificate := previousCertificate
-	if chainLen == 1 {
-		if err = checkReaderAuthCertificate(readerAuthCertificate, rootCertificate); err != nil {
-			return err
-		}
-	} else {
-		if err = checkReaderAuthCertificate(readerAuthCertificate, chain[chainLen-2]); err != nil {
-			return err
-		}
+	readerAuthCertificate, err := verifyChain(
+		rootCertificates,
+		chain,
+		now,
+		nil,
+		nil,
+		checkReaderAuthCertificate,
+	)
+	if err != nil {
+		return err
 	}
 
 	publicKey, ok := readerAuthCertificate.PublicKey.(*ecdsa.PublicKey)
@@ -106,7 +66,7 @@ func (ra *ReaderAuth) Verify(
 		return ErrUnsupportedAlgorithm
 	}
 
-	if publicKey.Curve != supportedCurve.ecdsaCurve {
+	if publicKey.Curve != curve.curveElliptic {
 		return ErrUnsupportedAlgorithm
 	}
 
@@ -115,47 +75,11 @@ func (ra *ReaderAuth) Verify(
 		return err
 	}
 
-	err = (*cose.Sign1Message)(ra).VerifyDetached(
+	return (*cose.Sign1Message)(ra).VerifyDetached(
 		readerAuthenticationBytes.TaggedValue,
 		[]byte{},
 		verifier,
 	)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func checkReaderAuthIntermediateCertificate(now time.Time, certificate *x509.Certificate, signer *x509.Certificate) error {
-	// issuer matches signer's subject
-	if !bytes.Equal(certificate.RawIssuer, signer.RawSubject) {
-		return ErrInvalidReaderAuthCertificate
-	}
-
-	// cert valid
-	if now.After(certificate.NotAfter) {
-		return ErrInvalidReaderAuthCertificate
-	}
-	if now.Before(certificate.NotBefore) {
-		return ErrInvalidReaderAuthCertificate
-	}
-
-	// cert validity is within signer's validity
-	if signer.NotAfter.Before(certificate.NotAfter) {
-		return ErrInvalidReaderAuthCertificate
-	}
-	if signer.NotBefore.After(certificate.NotBefore) {
-		return ErrInvalidReaderAuthCertificate
-	}
-
-	// signature valid
-	err := certificate.CheckSignatureFrom(signer)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func checkReaderAuthCertificate(certificate *x509.Certificate, signer *x509.Certificate) error {

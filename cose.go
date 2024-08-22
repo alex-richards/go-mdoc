@@ -11,7 +11,7 @@ var (
 	ErrUnrecognisedHeaderType = errors.New("unrecognised type for header")
 )
 
-func X509Chain(from cose.UnprotectedHeader) ([]*x509.Certificate, error) {
+func x509Chain(from cose.UnprotectedHeader) ([]*x509.Certificate, error) {
 	x509ChainHeader := from[cose.HeaderLabelX5Chain]
 
 	switch x509ChainEncoded := x509ChainHeader.(type) {

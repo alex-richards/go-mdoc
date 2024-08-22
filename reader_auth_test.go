@@ -10,6 +10,8 @@ import (
 )
 
 func TestReaderAuth_Verify(t *testing.T) {
+	// TODO unhappy path tests
+
 	readerRootEncoded, err := hex.DecodeString(ReaderRootHex)
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +70,7 @@ func TestReaderAuth_Verify(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = docRequest.ReaderAuth.Verify([]*x509.Certificate{readerRoot}, now, readerAuthenticationBytes)
+		err = docRequest.ReaderAuth.Verify(readerAuthenticationBytes, []*x509.Certificate{readerRoot}, now)
 		if err != nil {
 			t.Fatal(err)
 		}

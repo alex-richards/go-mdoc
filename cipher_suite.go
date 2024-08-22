@@ -3,86 +3,107 @@ package mdoc
 import (
 	"crypto/ecdh"
 	"crypto/elliptic"
-	"errors"
-
 	"github.com/veraison/go-cose"
-)
-
-var (
-	ErrorUnsupportedCurve = errors.New("unsupported curve")
 )
 
 var CipherSuite1 = CipherSuite{
 	Version: 1,
-	Curves: map[string]*Curve{
-		"P265": {
-			coseAlg:            cose.AlgorithmES256,
-			coseCurve:          cose.CurveP256,
-			ecdhCurve:          ecdh.P256(),
-			ecdsaCurve:         elliptic.P256(),
-			supportsReaderAuth: true,
+	SupportedCurves: []*Curve{
+		{
+			name:          "P256",
+			algorithmCose: cose.AlgorithmES256,
+			curveCOSE:     cose.CurveP256,
+			curveECDH:     ecdh.P256(),
+			curveElliptic: elliptic.P256(),
 		},
-		"P384": {
-			coseAlg:            cose.AlgorithmES384,
-			coseCurve:          cose.CurveP384,
-			ecdhCurve:          ecdh.P384(),
-			ecdsaCurve:         elliptic.P384(),
-			supportsReaderAuth: true,
+		{
+			name:          "P384",
+			algorithmCose: cose.AlgorithmES384,
+			curveCOSE:     cose.CurveP384,
+			curveECDH:     ecdh.P384(),
+			curveElliptic: elliptic.P384(),
 		},
-		"P521": {
-			coseAlg:            cose.AlgorithmES512,
-			coseCurve:          cose.CurveP521,
-			ecdhCurve:          ecdh.P521(),
-			ecdsaCurve:         elliptic.P521(),
-			supportsReaderAuth: true,
+		{
+			name:          "P521",
+			algorithmCose: cose.AlgorithmES512,
+			curveCOSE:     cose.CurveP521,
+			curveECDH:     ecdh.P521(),
+			curveElliptic: elliptic.P521(),
 		},
 	},
 }
 
 type CipherSuite struct {
-	Version int
-	Curves  map[string]*Curve
+	Version         int
+	SupportedCurves []*Curve
+}
+
+func (cs *CipherSuite) findCurveFromCOSEAlgorithm(algorithm cose.Algorithm) (*Curve, error) {
+	return cs.findCurve(func(curve *Curve) bool {
+		return algorithm == curve.algorithmCose
+	})
+}
+
+func (cs *CipherSuite) findCurveFromCOSECurve(curveCOSE cose.Curve) (*Curve, error) {
+	return cs.findCurve(func(curve *Curve) bool {
+		return curveCOSE == curve.curveCOSE
+	})
+}
+
+func (cs *CipherSuite) findCurveFromECDHCurve(curveECDH ecdh.Curve) (*Curve, error) {
+	return cs.findCurve(func(curve *Curve) bool {
+		return curveECDH == curve.curveECDH
+	})
+}
+
+func (cs *CipherSuite) findCurveFromCurveElliptic(curveElliptic elliptic.Curve) (*Curve, error) {
+	return cs.findCurve(func(curve *Curve) bool {
+		return curveElliptic == curve.curveElliptic
+	})
+}
+
+func (cs *CipherSuite) findCurve(filter func(curve *Curve) bool) (*Curve, error) {
+	for _, curve := range cs.SupportedCurves {
+		if filter(curve) {
+			return curve, nil
+		}
+	}
+	return nil, ErrUnsupportedAlgorithm
 }
 
 type Curve struct {
-	coseAlg   cose.Algorithm
-	coseCurve cose.Curve
-
-	ecdhCurve  ecdh.Curve
-	ecdsaCurve elliptic.Curve
-
-	supportsReaderAuth bool
+	name          string
+	algorithmCose cose.Algorithm
+	curveCOSE     cose.Curve
+	curveECDH     ecdh.Curve
+	curveElliptic elliptic.Curve
 }
 
-func (cs *CipherSuite) ECDHToCOSE(key *ecdh.PublicKey) (*cose.Key, error) {
-	keyCurve := key.Curve()
-
-	for _, curve := range cs.Curves {
-		if curve.ecdhCurve == keyCurve {
-			bytes := key.Bytes()[1:]
-			center := len(bytes) / 2
-			return cose.NewKeyEC2(curve.coseAlg, bytes[:center], bytes[center:], nil)
-		}
+func (cs *CipherSuite) ecdhToCOSE(key *ecdh.PublicKey) (*cose.Key, error) {
+	curveECDH := key.Curve()
+	curve, err := cs.findCurveFromECDHCurve(curveECDH)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, ErrorUnsupportedCurve
+	bytes := key.Bytes()[1:]
+	center := len(bytes) / 2
+	return cose.NewKeyEC2(curve.algorithmCose, bytes[:center], bytes[center:], nil)
 }
 
-func (cs *CipherSuite) COSEToECDH(key *cose.Key) (*ecdh.PublicKey, error) {
+func (cs *CipherSuite) coseToECDH(key *cose.Key) (*ecdh.PublicKey, error) {
 	c, x, y, _ := key.EC2()
-
-	for _, curve := range cs.Curves {
-		if curve.coseAlg == key.Algorithm && curve.coseCurve == c {
-			lenX := len(x)
-			point := make([]byte, 1+lenX+len(y))
-			point[0] = 0x04
-
-			copy(point[1:], x)
-			copy(point[1+lenX:], y)
-
-			return curve.ecdhCurve.NewPublicKey(point)
-		}
+	curve, err := cs.findCurveFromCOSECurve(c)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, ErrorUnsupportedCurve
+	lenX := len(x)
+	point := make([]byte, 1+lenX+len(y))
+	point[0] = 0x04
+
+	copy(point[1:], x)
+	copy(point[1+lenX:], y)
+
+	return curve.curveECDH.NewPublicKey(point)
 }

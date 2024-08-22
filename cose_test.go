@@ -48,15 +48,15 @@ func TestX509Chain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := X509Chain(tt.unprotectedHeaders)
+			got, err := x509Chain(tt.unprotectedHeaders)
 			if err != nil && !errors.Is(err, tt.wantErr) {
-				t.Fatalf("sdf() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err == nil && tt.wantErr != nil {
-				t.Fatalf("sdf() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("sdf() = %s", diff)
+				t.Error(diff)
 			}
 		})
 	}

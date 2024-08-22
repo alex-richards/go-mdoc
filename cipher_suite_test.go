@@ -10,12 +10,12 @@ func TestCipherSuite_KeyConversions_RoundTrip(t *testing.T) {
 
 	privateKey := NewTestECDHKey(t, rand)
 
-	coseKey, err := CipherSuite1.ECDHToCOSE(privateKey.PublicKey())
+	coseKey, err := CipherSuite1.ecdhToCOSE(privateKey.PublicKey())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	publicKey, err := CipherSuite1.COSEToECDH(coseKey)
+	publicKey, err := CipherSuite1.coseToECDH(coseKey)
 	if err != nil {
 		t.Fatal(err)
 	}
