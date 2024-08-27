@@ -90,15 +90,15 @@ func verifyChain(
 func checkCertificateSignature(certificate *x509.Certificate, signer *x509.Certificate) error {
 	// issuer matches signer's subject
 	if !bytes.Equal(certificate.RawIssuer, signer.RawSubject) {
-		return ErrInvalidReaderAuthCertificate
+		return ErrInvalidCertificate
 	}
 
 	// cert validity is within signer's validity
 	if signer.NotAfter.Before(certificate.NotAfter) {
-		return ErrInvalidReaderAuthCertificate
+		return ErrInvalidCertificate
 	}
 	if signer.NotBefore.After(certificate.NotBefore) {
-		return ErrInvalidReaderAuthCertificate
+		return ErrInvalidCertificate
 	}
 
 	// signature valid
@@ -112,10 +112,10 @@ func checkCertificateSignature(certificate *x509.Certificate, signer *x509.Certi
 func checkCertificateValidity(certificate *x509.Certificate, now time.Time) error {
 	// cert currently valid
 	if now.After(certificate.NotAfter) {
-		return ErrInvalidReaderAuthCertificate
+		return ErrInvalidCertificate
 	}
 	if now.Before(certificate.NotBefore) {
-		return ErrInvalidReaderAuthCertificate
+		return ErrInvalidCertificate
 	}
 
 	return nil

@@ -11,6 +11,9 @@ type DeterministicRand []byte
 
 func (r DeterministicRand) Read(p []byte) (n int, err error) {
 	write := len(p)
+	if write == 0 {
+		return 0, io.EOF
+	}
 	wrote := 0
 	for wrote < write {
 		wrote += copy(p[wrote:], r)

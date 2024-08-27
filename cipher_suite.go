@@ -2,8 +2,10 @@ package mdoc
 
 import (
 	"crypto/ecdh"
+	"crypto/ecdsa"
 	"crypto/elliptic"
 	"github.com/veraison/go-cose"
+	"math/big"
 )
 
 var CipherSuite1 = CipherSuite{
@@ -11,25 +13,28 @@ var CipherSuite1 = CipherSuite{
 	SupportedCurves: []*Curve{
 		{
 			name:          "P256",
-			algorithmCose: cose.AlgorithmES256,
+			algorithmCose: cose.AlgorithmES256, // assumes no brainpool support
 			curveCOSE:     cose.CurveP256,
 			curveECDH:     ecdh.P256(),
 			curveElliptic: elliptic.P256(),
 		},
 		{
 			name:          "P384",
-			algorithmCose: cose.AlgorithmES384,
+			algorithmCose: cose.AlgorithmES384, // assumes no brainpool support
 			curveCOSE:     cose.CurveP384,
 			curveECDH:     ecdh.P384(),
 			curveElliptic: elliptic.P384(),
 		},
 		{
 			name:          "P521",
-			algorithmCose: cose.AlgorithmES512,
+			algorithmCose: cose.AlgorithmES512, // assumes no brainpool support
 			curveCOSE:     cose.CurveP521,
 			curveECDH:     ecdh.P521(),
 			curveElliptic: elliptic.P521(),
 		},
+		// TODO x25519 supported for ECDH, but Ed25519 not supported for ECDSA
+		// TODO no support for X448/Ed448
+		// TODO no support for Brainpool
 	},
 }
 
@@ -106,4 +111,27 @@ func (cs *CipherSuite) coseToECDH(key *cose.Key) (*ecdh.PublicKey, error) {
 	copy(point[1+lenX:], y)
 
 	return curve.curveECDH.NewPublicKey(point)
+}
+
+func (cs *CipherSuite) ecdsaToCOSE(key *ecdsa.PublicKey) (*cose.Key, error) {
+	curveElliptic := key.Curve
+	curve, err := cs.findCurveFromCurveElliptic(curveElliptic)
+	if err != nil {
+		return nil, err
+	}
+
+	return cose.NewKeyEC2(curve.algorithmCose, key.X.Bytes(), key.Y.Bytes(), nil)
+}
+
+func (cs *CipherSuite) coseToECDSA(key *cose.Key) (*ecdsa.PublicKey, error) {
+	c, x, y, _ := key.EC2()
+	curve, err := cs.findCurveFromCOSECurve(c)
+	if err != nil {
+		return nil, err
+	}
+
+	keyECDSA := &ecdsa.PublicKey{Curve: curve.curveElliptic, X: new(big.Int), Y: new(big.Int)}
+	keyECDSA.X.SetBytes(x)
+	keyECDSA.Y.SetBytes(y)
+	return keyECDSA, nil
 }

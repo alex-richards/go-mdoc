@@ -6,9 +6,14 @@ import (
 	"github.com/veraison/go-cose"
 )
 
+var (
+	ErrNoDeviceAuthPresent        = errors.New("mdoc: no device auth present")
+	ErrMultipleDeviceAuthsPresent = errors.New("mdoc: multiple device auths present")
+)
+
 type DeviceAuth struct {
 	DeviceSignature *DeviceSignature `cbor:",omitempty"`
-	// TODO DeviceMAC *DeviceMAC
+	DeviceMAC       *DeviceMAC       `cbor:",omitempty"`
 }
 
 type DeviceSignature cose.UntaggedSign1Message
@@ -20,7 +25,8 @@ func (ds *DeviceSignature) UnmarshalCBOR(data []byte) error {
 	return cbor.Unmarshal(data, (*cose.UntaggedSign1Message)(ds))
 }
 
-// TODO type DeviceMAC cose.Mac0Message
+// TODO type DeviceMAC cose.MAC0Message
+type DeviceMAC any
 
 type DeviceAuthentication struct {
 	_                    struct{} `cbor:",toarray"`
@@ -47,13 +53,21 @@ func (da *DeviceAuth) Verify(
 	deviceKey *DeviceKey,
 	deviceAuthenticationBytes *TaggedEncodedCBOR,
 ) error {
+	if da.DeviceSignature != nil && da.DeviceMAC != nil {
+		return ErrMultipleDeviceAuthsPresent
+	}
+
 	if da.DeviceSignature != nil {
 		if err := verifySignature(deviceKey, da.DeviceSignature, deviceAuthenticationBytes); err != nil {
 			return err
 		}
 	}
 
-	return errors.New("TODO") // TODO
+	if da.DeviceMAC != nil {
+		return errors.New("TODO") // TODO
+	}
+
+	return ErrNoDeviceAuthPresent
 }
 
 func verifySignature(

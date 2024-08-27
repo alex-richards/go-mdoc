@@ -49,19 +49,19 @@ func (ra *ReaderAuth) Verify(
 		return err
 	}
 
-	readerAuthCertificate, err := verifyChain(
+	readerAuthenticationCertificate, err := verifyChain(
 		rootCertificates,
 		chain,
 		now,
 		nil,
 		nil,
-		checkReaderAuthCertificate,
+		checkReaderAuthenticationCertificate,
 	)
 	if err != nil {
 		return err
 	}
 
-	publicKey, ok := readerAuthCertificate.PublicKey.(*ecdsa.PublicKey)
+	publicKey, ok := readerAuthenticationCertificate.PublicKey.(*ecdsa.PublicKey)
 	if !ok {
 		return ErrUnsupportedAlgorithm
 	}
@@ -82,7 +82,7 @@ func (ra *ReaderAuth) Verify(
 	)
 }
 
-func checkReaderAuthCertificate(certificate *x509.Certificate, signer *x509.Certificate) error {
+func checkReaderAuthenticationCertificate(certificate *x509.Certificate, signer *x509.Certificate) error {
 	if certificate.Version != 3 {
 		return ErrInvalidReaderAuthCertificate
 	}
@@ -125,7 +125,21 @@ func checkReaderAuthCertificate(certificate *x509.Certificate, signer *x509.Cert
 
 	// TODO authority information access
 
-	// TODO signature algorithm
+	// TODO add EdDSA support
+	if certificate.PublicKeyAlgorithm != x509.ECDSA {
+		return ErrUnsupportedAlgorithm
+	}
+
+	publicKey, ok := certificate.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return ErrUnsupportedAlgorithm
+	}
+
+	// TODO no brainpool support?
+	_, err := CipherSuite1.findCurveFromCurveElliptic(publicKey.Curve)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -3,6 +3,7 @@ package mdoc
 import (
 	"crypto/ecdsa"
 	"crypto/x509"
+	"errors"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -38,9 +39,9 @@ func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time
 		rootCertificates,
 		chain,
 		now,
-		nil, // TODO
-		nil, // TODO
-		nil, // TODO
+		checkIACACertificate,
+		checkIACALinkCertificate,
+		checkDocumentSignerCertificate,
 	)
 	if err != nil {
 		return err
@@ -70,6 +71,18 @@ func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time
 		[]byte{},
 		verifier,
 	)
+}
+
+func checkIACACertificate(certificate *x509.Certificate) error {
+	return errors.New("TODO") // TODO
+}
+
+func checkIACALinkCertificate(certificate *x509.Certificate, previous *x509.Certificate) error {
+	return errors.New("TODO") // TODO
+}
+
+func checkDocumentSignerCertificate(certificate *x509.Certificate, previous *x509.Certificate) error {
+	return errors.New("TODO") // TODO
 }
 
 func (ia *IssuerAuth) MobileSecurityObjectBytes() (*TaggedEncodedCBOR, error) {
