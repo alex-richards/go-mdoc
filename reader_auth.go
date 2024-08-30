@@ -3,6 +3,7 @@ package mdoc
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
@@ -34,22 +35,12 @@ func (ra *ReaderAuth) Verify(
 	rootCertificates []*x509.Certificate,
 	now time.Time,
 ) error {
-	signatureAlgorithm, err := ra.Headers.Protected.Algorithm()
-	if err != nil {
-		return ErrMissingAlgorithmHeader
-	}
-
-	curve, err := CipherSuite1.findCurveFromCOSEAlgorithm(signatureAlgorithm)
-	if err != nil {
-		return err
-	}
-
 	chain, err := x509Chain(ra.Headers.Unprotected)
 	if err != nil {
 		return err
 	}
 
-	readerAuthenticationCertificate, err := verifyChain(
+	readerAuthCertificate, err := verifyChain(
 		rootCertificates,
 		chain,
 		now,
@@ -61,16 +52,12 @@ func (ra *ReaderAuth) Verify(
 		return err
 	}
 
-	publicKey, ok := readerAuthenticationCertificate.PublicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return ErrUnsupportedAlgorithm
+	signatureAlgorithm, err := ra.Headers.Protected.Algorithm()
+	if err != nil {
+		return ErrMissingAlgorithmHeader
 	}
 
-	if publicKey.Curve != curve.curveElliptic {
-		return ErrUnsupportedAlgorithm
-	}
-
-	verifier, err := cose.NewVerifier(signatureAlgorithm, publicKey)
+	verifier, err := cose.NewVerifier(signatureAlgorithm, readerAuthCertificate.PublicKey)
 	if err != nil {
 		return err
 	}
@@ -125,20 +112,21 @@ func checkReaderAuthenticationCertificate(certificate *x509.Certificate, signer 
 
 	// TODO authority information access
 
-	// TODO add EdDSA support
-	if certificate.PublicKeyAlgorithm != x509.ECDSA {
-		return ErrUnsupportedAlgorithm
-	}
+	switch certificate.PublicKeyAlgorithm {
+	case x509.ECDSA:
+		_, ok := certificate.PublicKey.(*ecdsa.PublicKey)
+		if !ok {
+			return ErrInvalidReaderAuthCertificate
+		}
 
-	publicKey, ok := certificate.PublicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return ErrUnsupportedAlgorithm
-	}
+	case x509.Ed25519:
+		_, ok := certificate.PublicKey.(*ed25519.PublicKey)
+		if !ok {
+			return ErrInvalidReaderAuthCertificate
+		}
 
-	// TODO no brainpool support?
-	_, err := CipherSuite1.findCurveFromCurveElliptic(publicKey.Curve)
-	if err != nil {
-		return err
+	default:
+		return ErrInvalidReaderAuthCertificate
 	}
 
 	return nil

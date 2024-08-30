@@ -1,7 +1,6 @@
 package mdoc
 
 import (
-	"crypto/ecdsa"
 	"crypto/x509"
 	"errors"
 	"time"
@@ -20,16 +19,6 @@ func (ia *IssuerAuth) UnmarshalCBOR(data []byte) error {
 }
 
 func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time) error {
-	signatureAlgorithm, err := ia.Headers.Protected.Algorithm()
-	if err != nil {
-		return ErrMissingAlgorithmHeader
-	}
-
-	curve, err := CipherSuite1.findCurveFromCOSEAlgorithm(signatureAlgorithm)
-	if err != nil {
-		return err
-	}
-
 	chain, err := x509Chain(ia.Headers.Unprotected)
 	if err != nil {
 		return err
@@ -47,16 +36,12 @@ func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time
 		return err
 	}
 
-	publicKey, ok := issuerAuthCertificate.PublicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return ErrUnsupportedAlgorithm
+	signatureAlgorithm, err := ia.Headers.Protected.Algorithm()
+	if err != nil {
+		return ErrMissingAlgorithmHeader
 	}
 
-	if publicKey.Curve != curve.curveElliptic {
-		return ErrUnsupportedAlgorithm
-	}
-
-	verifier, err := cose.NewVerifier(signatureAlgorithm, publicKey)
+	verifier, err := cose.NewVerifier(signatureAlgorithm, issuerAuthCertificate.PublicKey)
 	if err != nil {
 		return err
 	}
@@ -129,16 +114,6 @@ type ValueDigests map[NameSpace]DigestIDs
 type DigestIDs map[DigestID]Digest
 type DigestID uint
 type Digest []byte
-
-type DeviceKey cose.Key
-
-func (dk *DeviceKey) MarshalCBOR() ([]byte, error) {
-	return cbor.Marshal((*cose.Key)(dk))
-}
-
-func (dk *DeviceKey) UnmarshalCBOR(data []byte) error {
-	return cbor.Unmarshal(data, (*cose.Key)(dk))
-}
 
 type DeviceKeyInfo struct {
 	DeviceKey         *DeviceKey         `cbor:"deviceKey"`

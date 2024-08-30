@@ -21,21 +21,21 @@ const (
 var readerIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 0}
 var deviceIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 1}
 
-func GenerateESessionPrivateKey(rand io.Reader, curve ecdh.Curve) (*ecdh.PrivateKey, error) {
-	if curve == nil {
-		curve = ecdh.P256()
-	}
-	return curve.GenerateKey(rand)
-}
+//func GenerateESessionPrivateKey(rand io.Reader, curve ecdh.Curve) (*ecdh.PrivateKey, error) {
+//	if curve == nil {
+//		curve = ecdh.P256()
+//	}
+//	return curve.GenerateKey(rand)
+//}
 
 func SKReader(
-	ePrivateKey *ecdh.PrivateKey,
-	ePublicKey *ecdh.PublicKey,
+	DeviceKeyPrivate DeviceKeyPrivate,
+	DeviceKey *DeviceKey,
 	sessionTranscriptBytes []byte,
 ) ([]byte, error) {
 	return sk(
-		ePrivateKey,
-		ePublicKey,
+		DeviceKeyPrivate,
+		DeviceKey,
 		sessionTranscriptBytes,
 		skReaderInfo,
 		skReaderLength,
@@ -43,13 +43,13 @@ func SKReader(
 }
 
 func SKDevice(
-	ePrivateKey *ecdh.PrivateKey,
-	ePublicKey *ecdh.PublicKey,
+	DeviceKeyPrivate DeviceKeyPrivate,
+	DeviceKey *DeviceKey,
 	sessionTranscriptBytes []byte,
 ) ([]byte, error) {
 	return sk(
-		ePrivateKey,
-		ePublicKey,
+		DeviceKeyPrivate,
+		DeviceKey,
 		sessionTranscriptBytes,
 		skDeviceInfo,
 		skDeviceLength,
@@ -57,13 +57,23 @@ func SKDevice(
 }
 
 func sk(
-	privateKey *ecdh.PrivateKey,
-	publicKey *ecdh.PublicKey,
+	DeviceKeyPrivate DeviceKeyPrivate,
+	DeviceKey *DeviceKey,
 	sessionTranscriptBytes []byte,
 	info string,
 	length int,
 ) ([]byte, error) {
-	sharedSecret, err := privateKey.ECDH(publicKey)
+	privateKey, ok := DeviceKeyPrivate.(*deviceKeyPrivateECDH)
+	if !ok {
+		return nil, ErrUnsupportedAlgorithm
+	}
+
+	publicKey, err := DeviceKey.publicKeyECDH()
+	if err != nil {
+		return nil, err
+	}
+
+	sharedSecret, err := (*ecdh.PrivateKey)(privateKey).ECDH(publicKey)
 	if err != nil {
 		return nil, err
 	}

@@ -6,7 +6,6 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/uuid"
-	"github.com/veraison/go-cose"
 )
 
 var (
@@ -19,8 +18,8 @@ type DeviceEngagement struct {
 	DeviceRetrievalMethods []DeviceRetrievalMethod `cbor:"2,keyasint,omitempty"`
 }
 
-func NewDeviceEngagement(rand io.Reader, eDeviceKey *cose.Key) (*DeviceEngagement, error) {
-	eDeviceKeyBytesUntagged, err := cbor.Marshal(eDeviceKey)
+func NewDeviceEngagement(rand io.Reader, EDeviceKey *DeviceKey) (*DeviceEngagement, error) {
+	eDeviceKeyBytesUntagged, err := cbor.Marshal(EDeviceKey)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +41,7 @@ func NewDeviceEngagement(rand io.Reader, eDeviceKey *cose.Key) (*DeviceEngagemen
 	return &DeviceEngagement{
 		"1.0",
 		Security{
-			CipherSuiteIdentifier: CipherSuite1.Version,
+			CipherSuiteIdentifier: CipherSuiteVersion,
 			EDeviceKeyBytes:       *eDeviceKeyBytes,
 		},
 		[]DeviceRetrievalMethod{
@@ -60,8 +59,8 @@ func NewDeviceEngagement(rand io.Reader, eDeviceKey *cose.Key) (*DeviceEngagemen
 	}, nil
 }
 
-func (de *DeviceEngagement) EDeviceKey() (*cose.Key, error) {
-	eDeviceKey := new(cose.Key)
+func (de *DeviceEngagement) EDeviceKey() (*DeviceKey, error) {
+	eDeviceKey := new(DeviceKey)
 	if err := cbor.Unmarshal(de.Security.EDeviceKeyBytes.UntaggedValue, eDeviceKey); err != nil {
 		return nil, err
 	}

@@ -14,12 +14,12 @@ import (
 )
 
 func TestVerifyChain(t *testing.T) {
-	rand := DeterministicRand{1, 2, 3, 4}
+	rand := NewDeterministicRand()
 
 	root1 := createCA(
 		t,
 		rand,
-		&x509.Certificate{
+		x509.Certificate{
 			Subject:   pkix.Name{CommonName: "root1"},
 			Issuer:    pkix.Name{CommonName: "root1"},
 			NotBefore: time.UnixMilli(1000),
@@ -29,7 +29,7 @@ func TestVerifyChain(t *testing.T) {
 	root2 := createCA(
 		t,
 		rand,
-		&x509.Certificate{
+		x509.Certificate{
 			SerialNumber: big.NewInt(5678),
 			Subject:      pkix.Name{CommonName: "root2"},
 			Issuer:       pkix.Name{CommonName: "root2"},
@@ -190,7 +190,7 @@ type ChainEntry struct {
 	key  *ecdsa.PrivateKey
 }
 
-func createCA(t *testing.T, rand io.Reader, template *x509.Certificate) *ChainEntry {
+func createCA(t *testing.T, rand io.Reader, template x509.Certificate) *ChainEntry {
 	t.Helper()
 
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand)
@@ -198,7 +198,6 @@ func createCA(t *testing.T, rand io.Reader, template *x509.Certificate) *ChainEn
 		t.Fatal(err)
 	}
 
-	template = &*template
 	template.Version = 3
 	template.SerialNumber = big.NewInt(1)
 	template.Issuer = template.Subject
@@ -209,8 +208,8 @@ func createCA(t *testing.T, rand io.Reader, template *x509.Certificate) *ChainEn
 
 	der, err := x509.CreateCertificate(
 		rand,
-		template,
-		template,
+		&template,
+		&template,
 		key.Public(),
 		key,
 	)

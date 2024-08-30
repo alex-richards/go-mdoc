@@ -2,18 +2,26 @@ package mdoc
 
 import (
 	"bytes"
-	"crypto/ecdh"
-	"crypto/rand"
 	"testing"
 )
 
 func TestSK_Equality(t *testing.T) {
-	eReaderKey, err := GenerateESessionPrivateKey(rand.Reader, ecdh.P256())
+	rand := NewDeterministicRand()
+
+	eReaderKeyPrivate, err := NewEDeviceKey(rand, CurveP256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eReaderKey, err := eReaderKeyPrivate.DeviceKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	eDeviceKey, err := GenerateESessionPrivateKey(rand.Reader, ecdh.P256())
+	eDeviceKeyPrivate, err := NewEDeviceKey(rand, CurveP256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eDeviceKey, err := eDeviceKeyPrivate.DeviceKey()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -21,12 +29,12 @@ func TestSK_Equality(t *testing.T) {
 	sessionTranscriptBytes := []byte{1, 2, 3, 4}
 
 	{
-		readerSKReader, err := SKReader(eReaderKey, eDeviceKey.PublicKey(), sessionTranscriptBytes)
+		readerSKReader, err := SKReader(eReaderKeyPrivate, eDeviceKey, sessionTranscriptBytes)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		deviceSKReader, err := SKReader(eDeviceKey, eReaderKey.PublicKey(), sessionTranscriptBytes)
+		deviceSKReader, err := SKReader(eDeviceKeyPrivate, eReaderKey, sessionTranscriptBytes)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -37,12 +45,12 @@ func TestSK_Equality(t *testing.T) {
 	}
 
 	{
-		readerSKDevice, err := SKDevice(eReaderKey, eDeviceKey.PublicKey(), sessionTranscriptBytes)
+		readerSKDevice, err := SKDevice(eReaderKeyPrivate, eDeviceKey, sessionTranscriptBytes)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		deviceSKDevice, err := SKDevice(eDeviceKey, eReaderKey.PublicKey(), sessionTranscriptBytes)
+		deviceSKDevice, err := SKDevice(eDeviceKeyPrivate, eReaderKey, sessionTranscriptBytes)
 		if err != nil {
 			t.Fatal(err)
 		}

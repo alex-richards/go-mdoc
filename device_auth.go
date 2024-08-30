@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	ErrNoDeviceAuthPresent        = errors.New("mdoc: no device auth present")
-	ErrMultipleDeviceAuthsPresent = errors.New("mdoc: multiple device auths present")
+	ErrNoDeviceAuthPresent        = errors.New("no device auth present")
+	ErrMultipleDeviceAuthsPresent = errors.New("multiple device auths present")
 )
 
 type DeviceAuth struct {
@@ -25,8 +25,7 @@ func (ds *DeviceSignature) UnmarshalCBOR(data []byte) error {
 	return cbor.Unmarshal(data, (*cose.UntaggedSign1Message)(ds))
 }
 
-// TODO type DeviceMAC cose.MAC0Message
-type DeviceMAC any
+type DeviceMAC any // TODO type DeviceMAC cose.MAC0Message
 
 type DeviceAuthentication struct {
 	_                    struct{} `cbor:",toarray"`
@@ -53,24 +52,22 @@ func (da *DeviceAuth) Verify(
 	deviceKey *DeviceKey,
 	deviceAuthenticationBytes *TaggedEncodedCBOR,
 ) error {
-	if da.DeviceSignature != nil && da.DeviceMAC != nil {
+	switch {
+	case da.DeviceSignature != nil && da.DeviceMAC != nil:
 		return ErrMultipleDeviceAuthsPresent
-	}
 
-	if da.DeviceSignature != nil {
-		if err := verifySignature(deviceKey, da.DeviceSignature, deviceAuthenticationBytes); err != nil {
-			return err
-		}
-	}
+	case da.DeviceSignature != nil:
+		return verifyDeviceSignature(deviceKey, da.DeviceSignature, deviceAuthenticationBytes)
 
-	if da.DeviceMAC != nil {
+	case da.DeviceMAC != nil:
 		return errors.New("TODO") // TODO
-	}
 
-	return ErrNoDeviceAuthPresent
+	default:
+		return ErrNoDeviceAuthPresent
+	}
 }
 
-func verifySignature(
+func verifyDeviceSignature(
 	deviceKey *DeviceKey,
 	deviceSignature *DeviceSignature,
 	deviceAuthenticationBytes *TaggedEncodedCBOR,
@@ -80,12 +77,12 @@ func verifySignature(
 		return ErrMissingAlgorithmHeader
 	}
 
-	_, err = CipherSuite1.findCurveFromCOSEAlgorithm(signatureAlgorithm)
+	key, err := (*cose.Key)(deviceKey).PublicKey()
 	if err != nil {
-		return ErrUnsupportedAlgorithm
+		return err
 	}
 
-	verifier, err := (*cose.Key)(deviceKey).Verifier()
+	verifier, err := cose.NewVerifier(signatureAlgorithm, key)
 	if err != nil {
 		return err
 	}

@@ -2,13 +2,23 @@ package mdoc
 
 import (
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"github.com/google/go-cmp/cmp"
 	"github.com/veraison/go-cose"
 	"testing"
+	"time"
 )
 
 func TestX509Chain(t *testing.T) {
+	rand := NewDeterministicRand()
+	cert := createCA(t, rand, x509.Certificate{
+		Subject:   pkix.Name{CommonName: "cert"},
+		Issuer:    pkix.Name{CommonName: "cert"},
+		NotBefore: time.UnixMilli(1000),
+		NotAfter:  time.UnixMilli(2000),
+	}).cert
+
 	tests := []struct {
 		name               string
 		unprotectedHeaders cose.UnprotectedHeader
@@ -18,23 +28,23 @@ func TestX509Chain(t *testing.T) {
 		{
 			name: "individual cert",
 			unprotectedHeaders: cose.UnprotectedHeader{
-				cose.HeaderLabelX5Chain: IACA.Raw,
+				cose.HeaderLabelX5Chain: cert.Raw,
 			},
 			want: []*x509.Certificate{
-				IACA,
+				cert,
 			},
 		},
 		{
 			name: "multiple certs",
 			unprotectedHeaders: cose.UnprotectedHeader{
 				cose.HeaderLabelX5Chain: [][]byte{
-					IACA.Raw,
-					IACA.Raw,
+					cert.Raw,
+					cert.Raw,
 				},
 			},
 			want: []*x509.Certificate{
-				IACA,
-				IACA,
+				cert,
+				cert,
 			},
 		},
 		{

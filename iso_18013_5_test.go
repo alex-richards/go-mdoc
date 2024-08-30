@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"crypto/ecdh"
 	"crypto/x509"
-	"encoding/hex"
+	"github.com/veraison/go-cose"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/go-cmp/cmp"
-	"github.com/veraison/go-cose"
 )
 
 const (
@@ -268,126 +267,104 @@ const (
 		"806a07f8b5388a332d92c189a7bf293ee1f543405ae6824d6673746174757300"
 )
 
-var (
-	IACA *x509.Certificate
-)
+func spec_IACA(t *testing.T) *x509.Certificate {
+	t.Helper()
 
-var (
-	EDeviceKeyPublic *cose.Key
-	EReaderKeyPublic *cose.Key
-)
+	iacaDER := decodeHex(t, IACAHex)
 
-var (
-	EDeviceKey *ecdh.PrivateKey
-	EReaderKey *ecdh.PrivateKey
-)
-
-func init() {
-	{
-		iacaDer, err := hex.DecodeString(IACAHex)
-		if err != nil {
-			panic(err)
-		}
-
-		IACA, err = x509.ParseCertificate(iacaDer)
-		if err != nil {
-			panic(err)
-		}
+	IACA, err := x509.ParseCertificate(iacaDER)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	{
-		x, err := hex.DecodeString(EDeviceKeyX)
-		if err != nil {
-			panic(err)
-		}
+	return IACA
+}
 
-		y, err := hex.DecodeString(EDeviceKeyY)
-		if err != nil {
-			panic(err)
-		}
+func spec_EDeviceKeyPrivate(t *testing.T) *deviceKeyPrivateECDH {
+	t.Helper()
 
-		d, err := hex.DecodeString(EDeviceKeyD)
-		if err != nil {
-			panic(err)
-		}
+	d := decodeHex(t, EDeviceKeyD)
 
-		EDeviceKeyPublic, err = cose.NewKeyEC2(cose.AlgorithmES256, x, y, nil)
-		if err != nil {
-			panic(err)
-		}
-
-		EDeviceKey, err = ecdh.P256().NewPrivateKey(d)
-		if err != nil {
-			panic(err)
-		}
+	EDeviceKey, err := ecdh.P256().NewPrivateKey(d)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	{
-		x, err := hex.DecodeString(EReaderKeyX)
-		if err != nil {
-			panic(err)
-		}
+	return (*deviceKeyPrivateECDH)(EDeviceKey)
+}
 
-		y, err := hex.DecodeString(EReaderKeyY)
-		if err != nil {
-			panic(err)
-		}
+func spec_EDeviceKey(t *testing.T) *DeviceKey {
+	t.Helper()
 
-		d, err := hex.DecodeString(EReaderKeyD)
-		if err != nil {
-			panic(err)
-		}
+	x := decodeHex(t, EDeviceKeyX)
+	y := decodeHex(t, EDeviceKeyY)
 
-		EReaderKeyPublic, err = cose.NewKeyEC2(cose.AlgorithmES256, x, y, nil)
-		if err != nil {
-			panic(err)
-		}
-
-		EReaderKey, err = ecdh.P256().NewPrivateKey(d)
-		if err != nil {
-			panic(err)
-		}
+	return &DeviceKey{
+		Type: cose.KeyTypeEC2,
+		Params: map[any]any{
+			cose.KeyLabelEC2Curve: cose.CurveP256,
+			cose.KeyLabelEC2X:     x,
+			cose.KeyLabelEC2Y:     y,
+		},
 	}
 }
 
-func TestDecodeDeviceEngagement(t *testing.T) {
-	deviceEngagementBytes, err := hex.DecodeString(DeviceEngagementHex)
+func spec_EReaderKeyPrivate(t *testing.T) *deviceKeyPrivateECDH {
+	t.Helper()
+
+	d := decodeHex(t, EReaderKeyD)
+
+	EReaderKey, err := ecdh.P256().NewPrivateKey(d)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	return (*deviceKeyPrivateECDH)(EReaderKey)
+}
+
+func spec_EReaderKey(t *testing.T) *DeviceKey {
+	t.Helper()
+
+	x := decodeHex(t, EReaderKeyX)
+	y := decodeHex(t, EReaderKeyY)
+
+	return &DeviceKey{
+		Type: cose.KeyTypeEC2,
+		Params: map[any]any{
+			cose.KeyLabelEC2Curve: cose.CurveP256,
+			cose.KeyLabelEC2X:     x,
+			cose.KeyLabelEC2Y:     y,
+		},
+	}
+}
+
+func TestSpec_DecodeDeviceEngagement(t *testing.T) {
+	deviceEngagementBytes := decodeHex(t, DeviceEngagementHex)
 
 	var deviceEngagement DeviceEngagement
-	if err = cbor.Unmarshal(deviceEngagementBytes, &deviceEngagement); err != nil {
+	if err := cbor.Unmarshal(deviceEngagementBytes, &deviceEngagement); err != nil {
 		t.Fatal(err)
 	}
 
-	eDeviceKey, err := deviceEngagement.EDeviceKey()
+	EDeviceKey, err := deviceEngagement.EDeviceKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	EDeviceKeyExpected := spec_EDeviceKey(t)
 	if diff := cmp.Diff(
-		EDeviceKeyPublic,
-		eDeviceKey,
-		cmp.FilterPath(
-			func(p cmp.Path) bool {
-				return p.String() == "Algorithm"
-			},
-			cmp.Ignore(),
-		),
+		EDeviceKeyExpected,
+		EDeviceKey,
 	); diff != "" {
 		t.Fatal(diff)
 	}
 }
 
-func TestDecodeSessionEstablishment(t *testing.T) {
-	sessionEstablishmentBytes, err := hex.DecodeString(SessionEstablishmentHex)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestSpec_DecodeSessionEstablishment(t *testing.T) {
+	sessionEstablishmentBytes := decodeHex(t, SessionEstablishmentHex)
 
 	var sessionEstablishment SessionEstablishment
-	if err = cbor.Unmarshal(sessionEstablishmentBytes, &sessionEstablishment); err != nil {
+	if err := cbor.Unmarshal(sessionEstablishmentBytes, &sessionEstablishment); err != nil {
 		t.Fatal(err)
 	}
 
@@ -396,83 +373,64 @@ func TestDecodeSessionEstablishment(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	eReaderKeyExpected := spec_EReaderKey(t)
+
 	if diff := cmp.Diff(
-		EReaderKeyPublic,
+		eReaderKeyExpected,
 		eReaderKey,
-		cmp.FilterPath(
-			func(p cmp.Path) bool {
-				return p.String() == "Algorithm"
-			},
-			cmp.Ignore(),
-		),
 	); diff != "" {
 		t.Fatal(diff)
 	}
 }
 
-func TestDecodeSessionData(t *testing.T) {
-	sessionDataBytes, err := hex.DecodeString(SessionDataHex)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestSpec_DecodeSessionData(t *testing.T) {
+	sessionDataBytes := decodeHex(t, SessionDataHex)
 
 	var sessionData SessionData
-	if err = cbor.Unmarshal(sessionDataBytes, &sessionData); err != nil {
+	if err := cbor.Unmarshal(sessionDataBytes, &sessionData); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestReaderSessionEncryption(t *testing.T) {
-	sessionTranscriptBytes, err := hex.DecodeString(SessionTranscriptHex)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestSpec_ReaderSessionEncryption(t *testing.T) {
+	sessionTranscriptBytes := decodeHex(t, SessionTranscriptHex)
 
-	eDeviceKey, err := CipherSuite1.coseToECDH(EDeviceKeyPublic)
-	if err != nil {
-		t.Fatal(err)
-	}
+	EDeviceKeyPrivate := spec_EDeviceKeyPrivate(t)
+	EReaderKeyPrivate := spec_EReaderKeyPrivate(t)
 
-	skReader, err := SKReader(EReaderKey, eDeviceKey, sessionTranscriptBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
+	EDeviceKey := spec_EDeviceKey(t)
+	EReaderKey := spec_EReaderKey(t)
 
-	skReaderExpected, err := hex.DecodeString(SKReaderKey)
+	SKReaderExpected := decodeHex(t, SKReaderKey)
+	SKDeviceExpected := decodeHex(t, SKDeviceKey)
+
+	SKReader, err := SKReader(EReaderKeyPrivate, EDeviceKey, sessionTranscriptBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(skReaderExpected, skReader) {
+	if !bytes.Equal(SKReaderExpected, SKReader) {
 		t.Fatal()
 	}
 
-	skDevice, err := SKDevice(EReaderKey, eDeviceKey, sessionTranscriptBytes)
+	SKDevice, err := SKDevice(EDeviceKeyPrivate, EReaderKey, sessionTranscriptBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	skDeviceExpected, err := hex.DecodeString(SKDeviceKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(skDeviceExpected, skDevice) {
+	if !bytes.Equal(SKDeviceExpected, SKDevice) {
 		t.Fatal()
 	}
 
-	_, err = NewReaderSessionEncryption(skReader, skDevice)
+	_, err = NewReaderSessionEncryption(SKReader, SKDevice)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestDecodeDeviceRequest(t *testing.T) {
-	deviceRequestBytes, err := hex.DecodeString(DeviceRequestHex)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestSpec_DecodeDeviceRequest(t *testing.T) {
+	deviceRequestBytes := decodeHex(t, DeviceRequestHex)
 
 	var deviceRequest DeviceRequest
-	if err = cbor.Unmarshal(deviceRequestBytes, &deviceRequest); err != nil {
+	if err := cbor.Unmarshal(deviceRequestBytes, &deviceRequest); err != nil {
 		t.Fatal(err)
 	}
 
@@ -484,14 +442,11 @@ func TestDecodeDeviceRequest(t *testing.T) {
 	}
 }
 
-func TestDecodeDeviceResponse(t *testing.T) {
-	deviceResponseBytes, err := hex.DecodeString(DeviceResponseHex)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestSpec_DecodeDeviceResponse(t *testing.T) {
+	deviceResponseBytes := decodeHex(t, DeviceResponseHex)
 
 	var deviceResponse DeviceResponse
-	if err = cbor.Unmarshal(deviceResponseBytes, &deviceResponse); err != nil {
+	if err := cbor.Unmarshal(deviceResponseBytes, &deviceResponse); err != nil {
 		t.Fatal(err)
 	}
 
@@ -513,19 +468,16 @@ func TestDecodeDeviceResponse(t *testing.T) {
 	}
 }
 
-func TestDecodeSessionTranscript(t *testing.T) {
-	sessionTranscriptTagged, err := hex.DecodeString(SessionTranscriptHex)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestSpec_DecodeSessionTranscript(t *testing.T) {
+	sessionTranscriptTagged := decodeHex(t, SessionTranscriptHex)
 
 	var sessionTranscriptBytes TaggedEncodedCBOR
-	if err = cbor.Unmarshal(sessionTranscriptTagged, &sessionTranscriptBytes); err != nil {
+	if err := cbor.Unmarshal(sessionTranscriptTagged, &sessionTranscriptBytes); err != nil {
 		t.Fatal(err)
 	}
 
 	var sessionTranscript SessionTranscript
-	if err = cbor.Unmarshal(sessionTranscriptBytes.UntaggedValue, &sessionTranscript); err != nil {
+	if err := cbor.Unmarshal(sessionTranscriptBytes.UntaggedValue, &sessionTranscript); err != nil {
 		t.Fatal(err)
 	}
 }

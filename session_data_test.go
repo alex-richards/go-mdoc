@@ -9,8 +9,18 @@ import (
 )
 
 func TestNewSessionEstablishment(t *testing.T) {
-	_, err := NewSessionEstablishment(
-		EReaderKeyPublic,
+	deviceKeyPrivate, err := NewEDeviceKey(NewDeterministicRand(), CurveP256)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deviceKey, err := deviceKeyPrivate.DeviceKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = NewSessionEstablishment(
+		deviceKey,
 		[]byte{1, 2, 3, 4},
 	)
 	if err != nil {

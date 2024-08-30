@@ -8,21 +8,29 @@ import (
 )
 
 func TestDeviceEngagement_EDeviceKey(t *testing.T) {
-	rand := DeterministicRand{1, 2, 3, 4}
+	rand := NewDeterministicRand()
 
-	eDeviceKeyIn := NewTestCOSEKey(t, rand)
-
-	deviceEngagement, err := NewDeviceEngagement(rand, eDeviceKeyIn)
+	EDeviceKeyPrivate, err := NewEDeviceKey(rand, CurveP256)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	eDeviceKeyOut, err := deviceEngagement.EDeviceKey()
+	EDeviceKey, err := EDeviceKeyPrivate.DeviceKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(*eDeviceKeyIn, *eDeviceKeyOut); diff != "" {
+	deviceEngagement, err := NewDeviceEngagement(rand, EDeviceKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	EDeviceKeyOut, err := deviceEngagement.EDeviceKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if diff := cmp.Diff(*EDeviceKey, *EDeviceKeyOut); diff != "" {
 		t.Fatal(diff)
 	}
 }

@@ -1,15 +1,18 @@
 package mdoc
 
 import (
-	"crypto/ecdh"
-	"github.com/veraison/go-cose"
+	"encoding/hex"
 	"io"
 	"testing"
 )
 
-type DeterministicRand []byte
+func NewDeterministicRand() io.Reader {
+	return &deterministicRand{1, 2, 3, 4}
+}
 
-func (r DeterministicRand) Read(p []byte) (n int, err error) {
+type deterministicRand []byte
+
+func (r deterministicRand) Read(p []byte) (n int, err error) {
 	write := len(p)
 	if write == 0 {
 		return 0, io.EOF
@@ -21,37 +24,13 @@ func (r DeterministicRand) Read(p []byte) (n int, err error) {
 	return wrote, nil
 }
 
-func NewTestCOSEKey(t *testing.T, rand io.Reader) *cose.Key {
+func decodeHex(t *testing.T, encoded string) []byte {
 	t.Helper()
 
-	s := 256 / 8
-
-	x := make([]byte, s)
-	_, err := rand.Read(x)
+	decoded, err := hex.DecodeString(encoded)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	y := make([]byte, s)
-	_, err = rand.Read(y)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	key, err := cose.NewKeyEC2(cose.AlgorithmES256, x, y, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return key
-}
-
-func NewTestECDHKey(t *testing.T, rand io.Reader) *ecdh.PrivateKey {
-	t.Helper()
-
-	key, err := ecdh.P256().GenerateKey(rand)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return key
+	return decoded
 }

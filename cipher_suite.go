@@ -3,104 +3,143 @@ package mdoc
 import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
+	"errors"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
-	"math/big"
+	"io"
 )
 
-var CipherSuite1 = CipherSuite{
-	Version: 1,
-	SupportedCurves: []*Curve{
-		{
-			name:          "P256",
-			algorithmCose: cose.AlgorithmES256, // assumes no brainpool support
-			curveCOSE:     cose.CurveP256,
-			curveECDH:     ecdh.P256(),
-			curveElliptic: elliptic.P256(),
-		},
-		{
-			name:          "P384",
-			algorithmCose: cose.AlgorithmES384, // assumes no brainpool support
-			curveCOSE:     cose.CurveP384,
-			curveECDH:     ecdh.P384(),
-			curveElliptic: elliptic.P384(),
-		},
-		{
-			name:          "P521",
-			algorithmCose: cose.AlgorithmES512, // assumes no brainpool support
-			curveCOSE:     cose.CurveP521,
-			curveECDH:     ecdh.P521(),
-			curveElliptic: elliptic.P521(),
-		},
-		// TODO x25519 supported for ECDH, but Ed25519 not supported for ECDSA
-		// TODO no support for X448/Ed448
-		// TODO no support for Brainpool
-	},
-}
+var (
+	ErrUnsupportedCurve = errors.New("unsupported curve")
+)
 
-type CipherSuite struct {
-	Version         int
-	SupportedCurves []*Curve
-}
+const (
+	CipherSuiteVersion = 1
+)
 
-func (cs *CipherSuite) findCurveFromCOSEAlgorithm(algorithm cose.Algorithm) (*Curve, error) {
-	return cs.findCurve(func(curve *Curve) bool {
-		return algorithm == curve.algorithmCose
-	})
-}
+type Curve int
 
-func (cs *CipherSuite) findCurveFromCOSECurve(curveCOSE cose.Curve) (*Curve, error) {
-	return cs.findCurve(func(curve *Curve) bool {
-		return curveCOSE == curve.curveCOSE
-	})
-}
+const (
+	CurveP256 Curve = iota
+	CurveP384
+	CurveP521
+	CurveX25519
+	CurveX448
+	CurveEd25519
+	CurveEd448
+	CurveBrainpoolP256r1
+	CurveBrainpoolP320r1
+	CurveBrainpoolP384r1
+	CurveBrainpoolP512r1
+)
 
-func (cs *CipherSuite) findCurveFromECDHCurve(curveECDH ecdh.Curve) (*Curve, error) {
-	return cs.findCurve(func(curve *Curve) bool {
-		return curveECDH == curve.curveECDH
-	})
-}
+var (
+	SupportedCurves = [...]Curve{
+		CurveP256,
+		CurveP384,
+		CurveP521,
+		CurveX25519,
+		CurveEd25519,
+	}
+)
 
-func (cs *CipherSuite) findCurveFromCurveElliptic(curveElliptic elliptic.Curve) (*Curve, error) {
-	return cs.findCurve(func(curve *Curve) bool {
-		return curveElliptic == curve.curveElliptic
-	})
-}
+type SDeviceKeyMode int
 
-func (cs *CipherSuite) findCurve(filter func(curve *Curve) bool) (*Curve, error) {
-	for _, curve := range cs.SupportedCurves {
-		if filter(curve) {
-			return curve, nil
+const (
+	SDeviceKeyModeSign SDeviceKeyMode = iota
+	SDeviceKeyModeMAC
+)
+
+func NewSDeviceKey(rand io.Reader, curve Curve, mode SDeviceKeyMode) (DeviceKeyPrivate, error) {
+	if mode == SDeviceKeyModeSign {
+		var c elliptic.Curve
+		switch curve {
+		case CurveP256:
+			c = elliptic.P256()
+		case CurveP384:
+			c = elliptic.P384()
+		case CurveP521:
+			c = elliptic.P521()
+
+		case CurveEd25519:
+			_, key, err := ed25519.GenerateKey(rand)
+			if err != nil {
+				return nil, err
+			}
+			return (*deviceKeyPrivateEd25519)(&key), nil
+
+		default:
+			return nil, ErrUnsupportedCurve
 		}
-	}
-	return nil, ErrUnsupportedAlgorithm
-}
 
-type Curve struct {
-	name          string
-	algorithmCose cose.Algorithm
-	curveCOSE     cose.Curve
-	curveECDH     ecdh.Curve
-	curveElliptic elliptic.Curve
-}
-
-func (cs *CipherSuite) ecdhToCOSE(key *ecdh.PublicKey) (*cose.Key, error) {
-	curveECDH := key.Curve()
-	curve, err := cs.findCurveFromECDHCurve(curveECDH)
-	if err != nil {
-		return nil, err
+		key, err := ecdsa.GenerateKey(c, rand)
+		if err != nil {
+			return nil, err
+		}
+		return (*deviceKeyPrivateECDSA)(key), nil
 	}
 
-	bytes := key.Bytes()[1:]
-	center := len(bytes) / 2
-	return cose.NewKeyEC2(curve.algorithmCose, bytes[:center], bytes[center:], nil)
+	if mode == SDeviceKeyModeMAC {
+		var c ecdh.Curve
+		switch curve {
+		case CurveP256:
+			c = ecdh.P256()
+		case CurveP384:
+			c = ecdh.P384()
+		case CurveP521:
+			c = ecdh.P521()
+		case CurveX25519:
+			c = ecdh.X25519()
+
+		default:
+			return nil, ErrUnsupportedCurve
+		}
+
+		key, err := c.GenerateKey(rand)
+		if err != nil {
+			return nil, err
+		}
+		return (*deviceKeyPrivateECDH)(key), nil
+	}
+
+	return nil, ErrUnsupportedCurve
 }
 
-func (cs *CipherSuite) coseToECDH(key *cose.Key) (*ecdh.PublicKey, error) {
-	c, x, y, _ := key.EC2()
-	curve, err := cs.findCurveFromCOSECurve(c)
-	if err != nil {
-		return nil, err
+func NewEDeviceKey(rand io.Reader, curve Curve) (DeviceKeyPrivate, error) {
+	return NewSDeviceKey(rand, curve, SDeviceKeyModeMAC)
+}
+
+type DeviceKey cose.Key
+
+func (dk *DeviceKey) MarshalCBOR() ([]byte, error) {
+	return cbor.Marshal((*cose.Key)(dk))
+}
+
+func (dk *DeviceKey) UnmarshalCBOR(data []byte) error {
+	return cbor.Unmarshal(data, (*cose.Key)(dk))
+}
+
+func (dk *DeviceKey) publicKeyECDH() (*ecdh.PublicKey, error) {
+	if dk.Type != cose.KeyTypeEC2 {
+		return nil, ErrUnsupportedAlgorithm
+	}
+
+	crv, x, y, _ := (*cose.Key)(dk).EC2()
+
+	var curve ecdh.Curve
+	switch crv {
+	case cose.CurveP256:
+		curve = ecdh.P256()
+	case cose.CurveP384:
+		curve = ecdh.P384()
+	case cose.CurveP521:
+		curve = ecdh.P521()
+	case cose.CurveEd25519:
+		curve = ecdh.X25519()
+	default:
+		return nil, ErrUnsupportedCurve
 	}
 
 	lenX := len(x)
@@ -110,28 +149,59 @@ func (cs *CipherSuite) coseToECDH(key *cose.Key) (*ecdh.PublicKey, error) {
 	copy(point[1:], x)
 	copy(point[1+lenX:], y)
 
-	return curve.curveECDH.NewPublicKey(point)
+	return curve.NewPublicKey(point)
 }
 
-func (cs *CipherSuite) ecdsaToCOSE(key *ecdsa.PublicKey) (*cose.Key, error) {
-	curveElliptic := key.Curve
-	curve, err := cs.findCurveFromCurveElliptic(curveElliptic)
-	if err != nil {
-		return nil, err
-	}
-
-	return cose.NewKeyEC2(curve.algorithmCose, key.X.Bytes(), key.Y.Bytes(), nil)
+type DeviceKeyPrivate interface {
+	DeviceKey() (*DeviceKey, error)
 }
 
-func (cs *CipherSuite) coseToECDSA(key *cose.Key) (*ecdsa.PublicKey, error) {
-	c, x, y, _ := key.EC2()
-	curve, err := cs.findCurveFromCOSECurve(c)
-	if err != nil {
-		return nil, err
+type deviceKeyPrivateECDH ecdh.PrivateKey
+
+func (dk *deviceKeyPrivateECDH) DeviceKey() (*DeviceKey, error) {
+	publicKey := (*ecdh.PrivateKey)(dk).PublicKey()
+
+	var curve cose.Curve
+	switch publicKey.Curve() {
+	case ecdh.P256():
+		curve = cose.CurveP256
+	case ecdh.P384():
+		curve = cose.CurveP384
+	case ecdh.P521():
+		curve = cose.CurveP521
+	case ecdh.X25519():
+		curve = cose.CurveX25519
+	default:
+		return nil, ErrUnsupportedCurve
 	}
 
-	keyECDSA := &ecdsa.PublicKey{Curve: curve.curveElliptic, X: new(big.Int), Y: new(big.Int)}
-	keyECDSA.X.SetBytes(x)
-	keyECDSA.Y.SetBytes(y)
-	return keyECDSA, nil
+	bytes := publicKey.Bytes()
+	startY := len(bytes)/2 + 1
+	x := bytes[1:startY]
+	y := bytes[startY:]
+
+	return &DeviceKey{
+		Type: cose.KeyTypeEC2,
+		Params: map[any]any{
+			cose.KeyLabelEC2Curve: curve,
+			cose.KeyLabelEC2X:     x,
+			cose.KeyLabelEC2Y:     y,
+		},
+	}, nil
+}
+
+type deviceKeyPrivateECDSA ecdsa.PrivateKey
+
+func (dk *deviceKeyPrivateECDSA) DeviceKey() (*DeviceKey, error) {
+	k := (*ecdsa.PrivateKey)(dk)
+	_ = k
+	return &DeviceKey{}, nil // TODO
+}
+
+type deviceKeyPrivateEd25519 ed25519.PrivateKey
+
+func (dk *deviceKeyPrivateEd25519) DeviceKey() (*DeviceKey, error) {
+	k := (*ed25519.PrivateKey)(dk)
+	_ = k
+	return &DeviceKey{}, nil // TODO
 }

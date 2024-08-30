@@ -1,82 +1,252 @@
 package mdoc
 
 import (
-	"bytes"
-	"crypto/ecdh"
-	"encoding/hex"
+	"errors"
 	"testing"
 )
 
-func TestCipherSuite_KeyConversions_RoundTrip(t *testing.T) {
-	rand := DeterministicRand{1, 2, 3, 4}
-
-	testKeyECDH := NewTestECDHKey(t, rand)
+func TestNewSDeviceKey(t *testing.T) {
+	rand := NewDeterministicRand()
 
 	tests := []struct {
-		name      string
-		key       *ecdh.PublicKey
-		transform func(key *ecdh.PublicKey) (*ecdh.PublicKey, error)
+		name    string
+		curve   Curve
+		mode    SDeviceKeyMode
+		wantErr error
 	}{
 		{
-			name: "ECDH to COSE to ECDH",
-			key:  testKeyECDH.PublicKey(),
-			transform: func(key *ecdh.PublicKey) (*ecdh.PublicKey, error) {
-				keyCOSE, err := CipherSuite1.ecdhToCOSE(key)
-				if err != nil {
-					return nil, err
-				}
-
-				keyECDH, err := CipherSuite1.coseToECDH(keyCOSE)
-				if err != nil {
-					return nil, err
-				}
-
-				return keyECDH, nil
-			},
+			name:    "CurveP256 Sign",
+			curve:   CurveP256,
+			mode:    SDeviceKeyModeSign,
+			wantErr: nil,
 		},
 		{
-			name: "ECDH to COSE to ECDSA to COSE to ECDH",
-			key:  testKeyECDH.PublicKey(),
-			transform: func(key *ecdh.PublicKey) (*ecdh.PublicKey, error) {
-				keyCOSE, err := CipherSuite1.ecdhToCOSE(key)
-				if err != nil {
-					return nil, err
-				}
-
-				keyECDSA, err := CipherSuite1.coseToECDSA(keyCOSE)
-				if err != nil {
-					return nil, err
-				}
-
-				keyCOSE2, err := CipherSuite1.ecdsaToCOSE(keyECDSA)
-				if err != nil {
-					return nil, err
-				}
-
-				keyECDH, err := CipherSuite1.coseToECDH(keyCOSE2)
-				if err != nil {
-					return nil, err
-				}
-
-				return keyECDH, nil
-			},
+			name:    "CurveP256 MAC",
+			curve:   CurveP256,
+			mode:    SDeviceKeyModeMAC,
+			wantErr: nil,
+		},
+		{
+			name:    "CurveP384 Sign",
+			curve:   CurveP384,
+			mode:    SDeviceKeyModeSign,
+			wantErr: nil,
+		},
+		{
+			name:    "CurveP384 Mac",
+			curve:   CurveP384,
+			mode:    SDeviceKeyModeMAC,
+			wantErr: nil,
+		},
+		{
+			name:    "CurveP521 Sign",
+			curve:   CurveP521,
+			mode:    SDeviceKeyModeSign,
+			wantErr: nil,
+		},
+		{
+			name:    "CurveP521 MAC",
+			curve:   CurveP521,
+			mode:    SDeviceKeyModeMAC,
+			wantErr: nil,
+		},
+		{
+			name:    "CurveX25519 Sign",
+			curve:   CurveX25519,
+			mode:    SDeviceKeyModeSign,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveX25519 MAC",
+			curve:   CurveX25519,
+			mode:    SDeviceKeyModeMAC,
+			wantErr: nil,
+		},
+		{
+			name:    "CurveEd25519 Sign",
+			curve:   CurveEd25519,
+			mode:    SDeviceKeyModeSign,
+			wantErr: nil,
+		},
+		{
+			name:    "CurveEd25519 MAC",
+			curve:   CurveEd25519,
+			mode:    SDeviceKeyModeMAC,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveX448 Sign",
+			curve:   CurveX448,
+			mode:    SDeviceKeyModeSign,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveX448 MAC",
+			curve:   CurveX448,
+			mode:    SDeviceKeyModeMAC,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveEd448 Sign",
+			curve:   CurveEd448,
+			mode:    SDeviceKeyModeSign,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveEd448 MAC",
+			curve:   CurveEd448,
+			mode:    SDeviceKeyModeMAC,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP256r1 Sign",
+			curve:   CurveBrainpoolP256r1,
+			mode:    SDeviceKeyModeSign,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP256r1 MAC",
+			curve:   CurveBrainpoolP256r1,
+			mode:    SDeviceKeyModeMAC,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP320r1 Sign",
+			curve:   CurveBrainpoolP320r1,
+			mode:    SDeviceKeyModeSign,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP320r1 MAC",
+			curve:   CurveBrainpoolP320r1,
+			mode:    SDeviceKeyModeMAC,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP384r1 Sign",
+			curve:   CurveBrainpoolP384r1,
+			mode:    SDeviceKeyModeSign,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP384r1 MAC",
+			curve:   CurveBrainpoolP384r1,
+			mode:    SDeviceKeyModeMAC,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP512r1 Sign",
+			curve:   CurveBrainpoolP512r1,
+			mode:    SDeviceKeyModeSign,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP512r1 MAC",
+			curve:   CurveBrainpoolP512r1,
+			mode:    SDeviceKeyModeMAC,
+			wantErr: ErrUnsupportedCurve,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.transform(tt.key)
+			SDeviceKey, err := NewSDeviceKey(rand, tt.curve, tt.mode)
+			if err != nil && !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && tt.wantErr != nil {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			}
 			if err != nil {
-				t.Fatal(err)
+				return
 			}
-
-			if !bytes.Equal(tt.key.Bytes(), got.Bytes()) {
-				t.Fatalf(
-					"want = %s, got = %s",
-					hex.EncodeToString(tt.key.Bytes()),
-					hex.EncodeToString(got.Bytes()),
-				)
-			}
+			_ = SDeviceKey
 		})
 	}
+}
+
+func TestNewEDeviceKey(t *testing.T) {
+	rand := NewDeterministicRand()
+
+	tests := []struct {
+		name    string
+		curve   Curve
+		wantErr error
+	}{
+		{
+			name:    "CurveP256",
+			curve:   CurveP256,
+			wantErr: nil,
+		},
+		{
+			name:    "CurveP384",
+			curve:   CurveP384,
+			wantErr: nil,
+		},
+		{
+			name:    "CurveP521",
+			curve:   CurveP521,
+			wantErr: nil,
+		},
+		{
+			name:    "CurveX25519",
+			curve:   CurveX25519,
+			wantErr: nil,
+		},
+		{
+			name:    "CurveX448",
+			curve:   CurveX448,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveEd25519",
+			curve:   CurveEd25519,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveEd448",
+			curve:   CurveEd448,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP256r1",
+			curve:   CurveBrainpoolP256r1,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP320r1",
+			curve:   CurveBrainpoolP320r1,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP384r1",
+			curve:   CurveBrainpoolP384r1,
+			wantErr: ErrUnsupportedCurve,
+		},
+		{
+			name:    "CurveBrainpoolP512r1",
+			curve:   CurveBrainpoolP512r1,
+			wantErr: ErrUnsupportedCurve,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			EDeviceKey, err := NewEDeviceKey(rand, tt.curve)
+			if err != nil && !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && tt.wantErr != nil {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			_ = EDeviceKey
+		})
+	}
+}
+
+func TestDeviceKeyPrivate_DeviceKey(t *testing.T) {
+	t.Fatal("TODO") // TODO
 }

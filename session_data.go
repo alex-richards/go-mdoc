@@ -2,7 +2,6 @@ package mdoc
 
 import (
 	"github.com/fxamacker/cbor/v2"
-	"github.com/veraison/go-cose"
 )
 
 type SessionEstablishment struct {
@@ -10,7 +9,7 @@ type SessionEstablishment struct {
 	Data            []byte            `cbor:"data"`
 }
 
-func NewSessionEstablishment(eReaderKey *cose.Key, data []byte) (*SessionEstablishment, error) {
+func NewSessionEstablishment(eReaderKey *DeviceKey, data []byte) (*SessionEstablishment, error) {
 	eReaderKeyBytesUntagged, err := cbor.Marshal(eReaderKey)
 	if err != nil {
 		return nil, err
@@ -27,8 +26,8 @@ func NewSessionEstablishment(eReaderKey *cose.Key, data []byte) (*SessionEstabli
 	}, nil
 }
 
-func (se *SessionEstablishment) EReaderKey() (*cose.Key, error) {
-	eReaderKey := new(cose.Key)
+func (se *SessionEstablishment) EReaderKey() (*DeviceKey, error) {
+	eReaderKey := new(DeviceKey)
 	if err := cbor.Unmarshal(se.EReaderKeyBytes.UntaggedValue, eReaderKey); err != nil {
 		return nil, err
 	}
