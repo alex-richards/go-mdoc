@@ -2,6 +2,8 @@ package mdoc
 
 import (
 	"encoding/hex"
+	"github.com/fxamacker/cbor/v2"
+	"github.com/google/go-cmp/cmp"
 	"io"
 	"testing"
 )
@@ -33,4 +35,25 @@ func decodeHex(t *testing.T, encoded string) []byte {
 	}
 
 	return decoded
+}
+
+func expectCBOR(t *testing.T, expected, got []byte) {
+	t.Helper()
+
+	diagExpected := diagnoseCBOR(t, expected)
+	diagGot := diagnoseCBOR(t, got)
+
+	if diff := cmp.Diff(diagExpected, diagGot); diff != "" {
+		t.Fatalf("diff:\n%s\nexptected:\n%s\ngot:\n%s", diff, diagExpected, diagGot)
+	}
+}
+
+func diagnoseCBOR(t *testing.T, encoded []byte) string {
+	t.Helper()
+
+	diag, err := cbor.Diagnose(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return diag
 }

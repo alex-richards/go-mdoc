@@ -10,6 +10,8 @@ require (
 	golang.org/x/crypto v0.26.0
 )
 
+require github.com/biter777/countries v1.7.5
+
 require github.com/x448/float16 v0.8.4 // indirect
 
 replace github.com/veraison/go-cose => ../go-cose/

@@ -11,15 +11,15 @@ var (
 )
 
 type SessionTranscript struct {
-	DeviceEngagementBytes TaggedEncodedCBOR
-	EReaderKeyBytes       TaggedEncodedCBOR
+	DeviceEngagementBytes *TaggedEncodedCBOR
+	EReaderKeyBytes       *TaggedEncodedCBOR
 	Handover              Handover
 }
 
 type intermediateSessionTranscript struct {
 	_                     struct{} `cbor:",toarray"`
-	DeviceEngagementBytes TaggedEncodedCBOR
-	EReaderKeyBytes       TaggedEncodedCBOR
+	DeviceEngagementBytes *TaggedEncodedCBOR
+	EReaderKeyBytes       *TaggedEncodedCBOR
 	Handover              cbor.RawMessage
 }
 

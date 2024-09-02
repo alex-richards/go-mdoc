@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"crypto/ecdh"
 	"crypto/x509"
-	"github.com/veraison/go-cose"
-	"testing"
-
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/go-cmp/cmp"
+	"github.com/veraison/go-cose"
+	"testing"
 )
 
 const (
@@ -33,6 +32,18 @@ const (
 		"aea5f32b6fb91cc29590c50dfac416e300e0603551d0f0101ff04040302010630120603551d130101ff040830060" +
 		"101ff020100300a06082a8648ce3d0403020347003044022018ac84baf991a614fb25e76241857b7fd0579dfe8a" +
 		"ed8ac7f130675490799930022077f46f00b4af3e014d253e0edcc9f146a75a6b1bdfe33e9fa72f30f0880d5237"
+
+	NFCHandoverRequest = "91022548721591020263720102110204616301013000110206616301036e6663005102046163010157001a201e" +
+		"016170706c69636174696f6e2f766e642e626c7565746f6f74682e6c652e6f6f6230081b28078080bf2801021c" +
+		"021107c832fff6d26fa0beb34dfcd555d4823a1c11010369736f2e6f72673a31383031333a6e66636e6663015a1" +
+		"72b016170706c69636174696f6e2f766e642e7766612e6e616e57030101032302001324fec9a70b97ac9684a4e" +
+		"326176ef5b981c5e8533e5f00298cfccbc35e700a6b020414"
+
+	NFCHandoverSelect = "91020f487315d10209616301013001046d646f631a200c016170706c69636174696f6e2f766e642e626c756574" +
+		"6f6f74682e6c652e6f6f6230081b28128b37282801021c015c1e580469736f2e6f72673a31383031333a646576" +
+		"696365656e676167656d656e746d646f63a20063312e30018201d818584ba4010220012158205a88d182bce5f4" +
+		"2efa59943f33359d2e8a968ff289d93e5fa444b624343167fe225820b16e8cf858ddc7690407ba61d4c338237a8" +
+		"cfcf3de6aa672fc60a557aa32fc67"
 
 	EDeviceKeyX = "5a88d182bce5f42efa59943f33359d2e8a968ff289d93e5fa444b624343167fe"
 	EDeviceKeyY = "b16e8cf858ddc7690407ba61d4c338237a8cfcf3de6aa672fc60a557aa32fc67"
@@ -265,7 +276,40 @@ const (
 		"85aa53f129134775d733754d7cb7a413766aeff13cb2e6c6465766963655369676e6564a26a6e616d6553706163" +
 		"6573d81841a06a64657669636541757468a1696465766963654d61638443a10105a0f65820e99521a85ad7891b" +
 		"806a07f8b5388a332d92c189a7bf293ee1f543405ae6824d6673746174757300"
+
+	ReaderAuthenticationHex = "d8185902ee837452656164657241757468656e7469636174696f6e83d8185858a20063312e30018201d818584b" +
+		"a4010220012158205a88d182bce5f42efa59943f33359d2e8a968ff289d93e5fa444b624343167fe225820b16e" +
+		"8cf858ddc7690407ba61d4c338237a8cfcf3de6aa672fc60a557aa32fc67d818584ba40102200121582060e33" +
+		"92385041f51403051f2415531cb56dd3f999c71687013aac6768bc8187e225820e58deb8fdbe907f7dd536824" +
+		"5551a34796f7d2215c440c339bb0f7b67beccdfa8258c391020f487315d10209616301013001046d646f631a2" +
+		"00c016170706c69636174696f6e2f766e642e626c7565746f6f74682e6c652e6f6f6230081b28128b37282801" +
+		"021c015c1e580469736f2e6f72673a31383031333a646576696365656e676167656d656e746d646f63a2006331" +
+		"2e30018201d818584ba4010220012158205a88d182bce5f42efa59943f33359d2e8a968ff289d93e5fa444b6243" +
+		"43167fe225820b16e8cf858ddc7690407ba61d4c338237a8cfcf3de6aa672fc60a557aa32fc6758cd91022548" +
+		"721591020263720102110204616301013000110206616301036e6663005102046163010157001a201e0161707" +
+		"06c69636174696f6e2f766e642e626c7565746f6f74682e6c652e6f6f6230081b28078080bf2801021c021107c" +
+		"832fff6d26fa0beb34dfcd555d4823a1c11010369736f2e6f72673a31383031333a6e66636e6663015a172b0161" +
+		"70706c69636174696f6e2f766e642e7766612e6e616e57030101032302001324fec9a70b97ac9684a4e326176e" +
+		"f5b981c5e8533e5f00298cfccbc35e700a6b020414d8185893a267646f6354797065756f72672e69736f2e3138" +
+		"3031332e352e312e6d444c6a6e616d65537061636573a1716f72672e69736f2e31383031332e352e31a66b666" +
+		"16d696c795f6e616d65f56f646f63756d656e745f6e756d626572f57264726976696e675f70726976696c65676" +
+		"573f56a69737375655f64617465f56b6578706972795f64617465f568706f727472616974f4"
+
+	DeviceAuthenticationHex = "TODO"
 )
+
+func spec_ReaderRoot(t *testing.T) *x509.Certificate {
+	t.Helper()
+
+	readerRootDER := decodeHex(t, ReaderRootHex)
+
+	readerRoot, err := x509.ParseCertificate(readerRootDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return readerRoot
+}
 
 func spec_IACA(t *testing.T) *x509.Certificate {
 	t.Helper()
@@ -338,7 +382,7 @@ func spec_EReaderKey(t *testing.T) *DeviceKey {
 	}
 }
 
-func TestSpec_DecodeDeviceEngagement(t *testing.T) {
+func TestSpec_DeviceEngagement_Decode(t *testing.T) {
 	deviceEngagementBytes := decodeHex(t, DeviceEngagementHex)
 
 	var deviceEngagement DeviceEngagement
@@ -360,7 +404,7 @@ func TestSpec_DecodeDeviceEngagement(t *testing.T) {
 	}
 }
 
-func TestSpec_DecodeSessionEstablishment(t *testing.T) {
+func TestSpec_SessionEstablishment_Decode(t *testing.T) {
 	sessionEstablishmentBytes := decodeHex(t, SessionEstablishmentHex)
 
 	var sessionEstablishment SessionEstablishment
@@ -383,7 +427,7 @@ func TestSpec_DecodeSessionEstablishment(t *testing.T) {
 	}
 }
 
-func TestSpec_DecodeSessionData(t *testing.T) {
+func TestSpec_SessionData_Decode(t *testing.T) {
 	sessionDataBytes := decodeHex(t, SessionDataHex)
 
 	var sessionData SessionData
@@ -426,7 +470,7 @@ func TestSpec_ReaderSessionEncryption(t *testing.T) {
 	}
 }
 
-func TestSpec_DecodeDeviceRequest(t *testing.T) {
+func TestSpec_DeviceRequest_Decode(t *testing.T) {
 	deviceRequestBytes := decodeHex(t, DeviceRequestHex)
 
 	var deviceRequest DeviceRequest
@@ -442,7 +486,29 @@ func TestSpec_DecodeDeviceRequest(t *testing.T) {
 	}
 }
 
-func TestSpec_DecodeDeviceResponse(t *testing.T) {
+func TestSpec_DeviceRequest_Verify(t *testing.T) {
+	readerRoot := spec_ReaderRoot(t)
+	deviceRequestBytes := decodeHex(t, DeviceRequestHex)
+
+	var deviceRequest DeviceRequest
+	if err := cbor.Unmarshal(deviceRequestBytes, &deviceRequest); err != nil {
+		t.Fatal(err)
+	}
+
+	readerAuthenticationBytes := decodeHex(t, ReaderAuthenticationHex)
+	readerAuthenticationTagged := &TaggedEncodedCBOR{TaggedValue: readerAuthenticationBytes}
+
+	err := deviceRequest.DocRequests[0].ReaderAuth.Verify(
+		readerAuthenticationTagged,
+		[]*x509.Certificate{readerRoot},
+		readerRoot.NotBefore,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSpec_DeviceResponse_Decode(t *testing.T) {
 	deviceResponseBytes := decodeHex(t, DeviceResponseHex)
 
 	var deviceResponse DeviceResponse
@@ -468,16 +534,59 @@ func TestSpec_DecodeDeviceResponse(t *testing.T) {
 	}
 }
 
-func TestSpec_DecodeSessionTranscript(t *testing.T) {
+func TestSpec_DeviceResponse_Verify(t *testing.T) {
+	deviceResponseBytes := decodeHex(t, DeviceResponseHex)
+
+	var deviceResponse DeviceResponse
+	if err := cbor.Unmarshal(deviceResponseBytes, &deviceResponse); err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO needs cose.MAC0
+	//deviceAuthenticationBytes := decodeHex(t, DeviceAuthenticationHex)
+	//deviceAuthenticationTagged, err := NewTaggedEncodedCBOR(deviceAuthenticationBytes)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//deviceResponse.Documents[0].DeviceSigned.DeviceAuth.Verify(
+	//	deviceAuthenticationTagged.TaggedValue,
+	//	)
+
+	iaca := spec_IACA(t)
+	err := deviceResponse.Documents[0].IssuerSigned.IssuerAuth.Verify(
+		[]*x509.Certificate{iaca},
+		iaca.NotBefore,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSpec_SessionTranscript_RoundTrip(t *testing.T) {
 	sessionTranscriptTagged := decodeHex(t, SessionTranscriptHex)
 
-	var sessionTranscriptBytes TaggedEncodedCBOR
-	if err := cbor.Unmarshal(sessionTranscriptTagged, &sessionTranscriptBytes); err != nil {
+	var sessionTranscript SessionTranscript
+	{
+		var sessionTranscriptBytes TaggedEncodedCBOR
+		if err := cbor.Unmarshal(sessionTranscriptTagged, &sessionTranscriptBytes); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := cbor.Unmarshal(sessionTranscriptBytes.UntaggedValue, &sessionTranscript); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	sessionTranscriptBytes, err := cbor.Marshal(sessionTranscript)
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	var sessionTranscript SessionTranscript
-	if err := cbor.Unmarshal(sessionTranscriptBytes.UntaggedValue, &sessionTranscript); err != nil {
+	sessionTranscriptTaggedAgain, err := NewTaggedEncodedCBOR(sessionTranscriptBytes)
+	if err != nil {
 		t.Fatal(err)
 	}
+
+	expectCBOR(t, sessionTranscriptTagged, sessionTranscriptTaggedAgain.TaggedValue)
 }

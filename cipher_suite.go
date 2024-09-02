@@ -128,18 +128,9 @@ func (dk *DeviceKey) publicKeyECDH() (*ecdh.PublicKey, error) {
 
 	crv, x, y, _ := (*cose.Key)(dk).EC2()
 
-	var curve ecdh.Curve
-	switch crv {
-	case cose.CurveP256:
-		curve = ecdh.P256()
-	case cose.CurveP384:
-		curve = ecdh.P384()
-	case cose.CurveP521:
-		curve = ecdh.P521()
-	case cose.CurveEd25519:
-		curve = ecdh.X25519()
-	default:
-		return nil, ErrUnsupportedCurve
+	curve, err := coseCurveToECDH(crv)
+	if err != nil {
+		return nil, err
 	}
 
 	lenX := len(x)
@@ -161,18 +152,9 @@ type deviceKeyPrivateECDH ecdh.PrivateKey
 func (dk *deviceKeyPrivateECDH) DeviceKey() (*DeviceKey, error) {
 	publicKey := (*ecdh.PrivateKey)(dk).PublicKey()
 
-	var curve cose.Curve
-	switch publicKey.Curve() {
-	case ecdh.P256():
-		curve = cose.CurveP256
-	case ecdh.P384():
-		curve = cose.CurveP384
-	case ecdh.P521():
-		curve = cose.CurveP521
-	case ecdh.X25519():
-		curve = cose.CurveX25519
-	default:
-		return nil, ErrUnsupportedCurve
+	curve, err := ecdhCurveToCOSE(publicKey.Curve())
+	if err != nil {
+		return nil, err
 	}
 
 	bytes := publicKey.Bytes()
@@ -193,15 +175,76 @@ func (dk *deviceKeyPrivateECDH) DeviceKey() (*DeviceKey, error) {
 type deviceKeyPrivateECDSA ecdsa.PrivateKey
 
 func (dk *deviceKeyPrivateECDSA) DeviceKey() (*DeviceKey, error) {
-	k := (*ecdsa.PrivateKey)(dk)
-	_ = k
-	return &DeviceKey{}, nil // TODO
+	key := (*ecdsa.PrivateKey)(dk).PublicKey
+
+	curve, err := ellipticCurveToCose(key.Curve)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DeviceKey{
+		Type: cose.KeyTypeEC2,
+		Params: map[any]any{
+			cose.KeyLabelEC2Curve: curve,
+			cose.KeyLabelEC2X:     key.X.Bytes(),
+			cose.KeyLabelEC2Y:     key.Y.Bytes(),
+		},
+	}, nil
 }
 
 type deviceKeyPrivateEd25519 ed25519.PrivateKey
 
 func (dk *deviceKeyPrivateEd25519) DeviceKey() (*DeviceKey, error) {
-	k := (*ed25519.PrivateKey)(dk)
-	_ = k
-	return &DeviceKey{}, nil // TODO
+	key := (*ed25519.PrivateKey)(dk).Public().(ed25519.PublicKey)
+
+	return &DeviceKey{
+		Type: cose.KeyTypeOKP,
+		Params: map[any]any{
+			cose.KeyLabelOKPCurve: cose.CurveEd25519,
+			cose.KeyLabelOKPX:     key,
+		},
+	}, nil
+}
+
+func coseCurveToECDH(curve cose.Curve) (ecdh.Curve, error) {
+	switch curve {
+	case cose.CurveP256:
+		return ecdh.P256(), nil
+	case cose.CurveP384:
+		return ecdh.P384(), nil
+	case cose.CurveP521:
+		return ecdh.P521(), nil
+	case cose.CurveX25519:
+		return ecdh.X25519(), nil
+	default:
+		return nil, ErrUnsupportedCurve
+	}
+}
+
+func ecdhCurveToCOSE(curve ecdh.Curve) (cose.Curve, error) {
+	switch curve {
+	case ecdh.P256():
+		return cose.CurveP256, nil
+	case ecdh.P384():
+		return cose.CurveP384, nil
+	case ecdh.P521():
+		return cose.CurveP521, nil
+	case ecdh.X25519():
+		return cose.CurveX25519, nil
+	default:
+		return cose.CurveReserved, ErrUnsupportedCurve
+	}
+}
+
+func ellipticCurveToCose(curve elliptic.Curve) (cose.Curve, error) {
+	switch curve {
+	case elliptic.P256():
+		return cose.CurveP256, nil
+	case elliptic.P384():
+		return cose.CurveP384, nil
+	case elliptic.P521():
+		return cose.CurveP521, nil
+	default:
+		return cose.CurveReserved, ErrUnsupportedCurve
+	}
 }

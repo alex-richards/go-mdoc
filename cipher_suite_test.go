@@ -248,5 +248,53 @@ func TestNewEDeviceKey(t *testing.T) {
 }
 
 func TestDeviceKeyPrivate_DeviceKey(t *testing.T) {
-	t.Fatal("TODO") // TODO
+	rand := NewDeterministicRand()
+
+	tests := []struct {
+		name  string
+		curve Curve
+		mode  SDeviceKeyMode
+	}{
+		{
+			name:  "CurveP256",
+			curve: CurveP256,
+			mode:  SDeviceKeyModeSign,
+		},
+		{
+			name:  "CurveP384",
+			curve: CurveP384,
+			mode:  SDeviceKeyModeSign,
+		},
+		{
+			name:  "CurveP521",
+			curve: CurveP521,
+			mode:  SDeviceKeyModeSign,
+		},
+		{
+			name:  "CurveX25519",
+			curve: CurveX25519,
+			mode:  SDeviceKeyModeMAC,
+		},
+		{
+			name:  "CurveEd25519",
+			curve: CurveEd25519,
+			mode:  SDeviceKeyModeSign,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			EDeviceKeyPrivate, err := NewSDeviceKey(rand, tt.curve, tt.mode)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			EDeviceKey, err := EDeviceKeyPrivate.DeviceKey()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_ = EDeviceKey // TODO test content
+		})
+	}
 }

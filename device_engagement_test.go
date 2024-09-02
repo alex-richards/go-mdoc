@@ -20,7 +20,7 @@ func TestDeviceEngagement_EDeviceKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deviceEngagement, err := NewDeviceEngagement(rand, EDeviceKey)
+	deviceEngagement, err := NewDeviceEngagementBLE(rand, EDeviceKey)
 	if err != nil {
 		t.Fatal(err)
 	}

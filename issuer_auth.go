@@ -1,12 +1,24 @@
 package mdoc
 
 import (
+	"bytes"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/x509"
+	"encoding/asn1"
 	"errors"
+	"strings"
 	"time"
 
+	"github.com/biter777/countries"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
+)
+
+var (
+	ErrInvalidIACARootCertificate       = errors.New("invalid IACA root certificate")
+	ErrInvalidIACALinkCertificate       = errors.New("invalid IACA link certificate")
+	ErrInvalidDocumentSignerCertificate = errors.New("invalid document signer certificate")
 )
 
 type IssuerAuth cose.UntaggedSign1Message
@@ -28,8 +40,8 @@ func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time
 		rootCertificates,
 		chain,
 		now,
-		checkIACACertificate,
-		checkIACALinkCertificate,
+		checkIACARootCertificate,
+		nil,
 		checkDocumentSignerCertificate,
 	)
 	if err != nil {
@@ -46,20 +58,67 @@ func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time
 		return err
 	}
 
-	mobileSecurityObjectBytes, err := ia.MobileSecurityObjectBytes()
-	if err != nil {
-		return err
-	}
-
-	return (*cose.Sign1Message)(ia).VerifyDetached(
-		mobileSecurityObjectBytes.TaggedValue,
+	return (*cose.Sign1Message)(ia).Verify(
 		[]byte{},
 		verifier,
 	)
 }
 
-func checkIACACertificate(certificate *x509.Certificate) error {
-	return errors.New("TODO") // TODO
+func checkIACARootCertificate(certificate *x509.Certificate) error {
+	if certificate.Version != 3 {
+		return ErrInvalidIACARootCertificate
+	}
+
+	{
+		country := certificate.Issuer.Country
+		if len(country) != 1 {
+			return ErrInvalidIACARootCertificate
+		}
+
+		if !strings.EqualFold(countries.ByName(country[0]).Alpha2(), country[0]) {
+			return ErrInvalidIACARootCertificate
+		}
+	}
+
+	if len(certificate.Issuer.CommonName) == 0 {
+		return ErrInvalidIACARootCertificate
+	}
+
+	{
+		maxNotAfter := certificate.NotBefore.AddDate(20, 0, 0)
+		if certificate.NotAfter.Compare(maxNotAfter) > 0 {
+			return ErrInvalidIACARootCertificate
+		}
+	}
+
+	if !bytes.Equal(certificate.RawIssuer, certificate.RawSubject) {
+		return ErrInvalidIACARootCertificate
+	}
+
+	if certificate.PublicKeyAlgorithm != x509.ECDSA {
+		return ErrInvalidIACARootCertificate
+	}
+
+	if certificate.KeyUsage != x509.KeyUsageCertSign|x509.KeyUsageCRLSign {
+		return ErrInvalidIACARootCertificate
+	}
+
+	if !certificate.IsCA {
+		return ErrInvalidIACARootCertificate
+	}
+
+	if certificate.MaxPathLen != 0 {
+		return ErrInvalidIACARootCertificate
+	}
+
+	switch certificate.SignatureAlgorithm {
+	case x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512:
+		// allow
+	default:
+		return ErrInvalidIACARootCertificate
+	}
+
+	return nil
 }
 
 func checkIACALinkCertificate(certificate *x509.Certificate, previous *x509.Certificate) error {
@@ -67,7 +126,61 @@ func checkIACALinkCertificate(certificate *x509.Certificate, previous *x509.Cert
 }
 
 func checkDocumentSignerCertificate(certificate *x509.Certificate, previous *x509.Certificate) error {
-	return errors.New("TODO") // TODO
+	if certificate.Version != 3 {
+		return ErrInvalidDocumentSignerCertificate
+	}
+
+	{
+		maxNotAfter := certificate.NotBefore.AddDate(0, 0, 457)
+		if certificate.NotAfter.Compare(maxNotAfter) > 0 {
+			return ErrInvalidDocumentSignerCertificate
+		}
+	}
+
+	//certificate.Subject.Country // TODO
+
+	//certificate.Subject.Province // TODO
+
+	switch certificate.SignatureAlgorithm {
+	case x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512:
+		// allow
+		//TODO edwards
+	default:
+		return ErrInvalidDocumentSignerCertificate
+	}
+	switch certificate.PublicKeyAlgorithm {
+	case x509.ECDSA:
+		_, ok := certificate.PublicKey.(*ecdsa.PublicKey)
+		if !ok {
+			return ErrInvalidDocumentSignerCertificate
+		}
+
+	case x509.Ed25519:
+		_, ok := certificate.PublicKey.(*ed25519.PublicKey)
+		if !ok {
+			return ErrInvalidDocumentSignerCertificate
+		}
+
+	default:
+		return ErrInvalidDocumentSignerCertificate
+	}
+
+	if !bytes.Equal(certificate.AuthorityKeyId, previous.SubjectKeyId) {
+		return ErrInvalidDocumentSignerCertificate
+	}
+
+	if certificate.KeyUsage != x509.KeyUsageDigitalSignature {
+		return ErrInvalidDocumentSignerCertificate
+	}
+
+	if len(certificate.UnknownExtKeyUsage) != 1 {
+		return ErrInvalidDocumentSignerCertificate
+	}
+	if !certificate.UnknownExtKeyUsage[0].Equal(asn1.ObjectIdentifier{1, 0, 18013, 5, 1, 2}) {
+		return ErrInvalidDocumentSignerCertificate
+	}
+
+	return nil
 }
 
 func (ia *IssuerAuth) MobileSecurityObjectBytes() (*TaggedEncodedCBOR, error) {

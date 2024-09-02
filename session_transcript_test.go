@@ -24,13 +24,13 @@ func TestSessionTranscript_CBOR_RoundTrip(t *testing.T) {
 
 	sessionTranscripts := []SessionTranscript{
 		{
-			DeviceEngagementBytes: *deviceEngagementBytes,
-			EReaderKeyBytes:       *eReaderKeyBytes,
+			DeviceEngagementBytes: deviceEngagementBytes,
+			EReaderKeyBytes:       eReaderKeyBytes,
 			Handover:              QRHandover{},
 		},
 		{
-			DeviceEngagementBytes: *deviceEngagementBytes,
-			EReaderKeyBytes:       *eReaderKeyBytes,
+			DeviceEngagementBytes: deviceEngagementBytes,
+			EReaderKeyBytes:       eReaderKeyBytes,
 			Handover: NFCHandover{
 				HandoverSelect:  []byte{1, 2, 3, 4},
 				HandoverRequest: nil,

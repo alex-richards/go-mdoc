@@ -101,7 +101,7 @@ func checkReaderAuthenticationCertificate(certificate *x509.Certificate, signer 
 	// TODO issuer alt name
 
 	extKeyUsage := certificate.UnknownExtKeyUsage
-	if len(extKeyUsage) == 0 {
+	if len(extKeyUsage) != 1 {
 		return ErrInvalidReaderAuthCertificate
 	}
 	if !extKeyUsage[0].Equal(asn1.ObjectIdentifier{1, 0, 18013, 5, 1, 6}) {

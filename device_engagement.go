@@ -16,9 +16,11 @@ type DeviceEngagement struct {
 	Version                string                  `cbor:"0,keyasint"`
 	Security               Security                `cbor:"1,keyasint"`
 	DeviceRetrievalMethods []DeviceRetrievalMethod `cbor:"2,keyasint,omitempty"`
+	ServerRetrievalMethods []any                   `cbor:"3,keyasint,omitempty"` // TODO
+	ProtocolInfo           any                     `cbor:"4,keyasint,omitempty"` // TODO
 }
 
-func NewDeviceEngagement(rand io.Reader, EDeviceKey *DeviceKey) (*DeviceEngagement, error) {
+func NewDeviceEngagementBLE(rand io.Reader, EDeviceKey *DeviceKey) (*DeviceEngagement, error) {
 	eDeviceKeyBytesUntagged, err := cbor.Marshal(EDeviceKey)
 	if err != nil {
 		return nil, err
@@ -56,6 +58,8 @@ func NewDeviceEngagement(rand io.Reader, EDeviceKey *DeviceKey) (*DeviceEngageme
 				},
 			},
 		},
+		nil,
+		nil,
 	}, nil
 }
 
