@@ -45,6 +45,10 @@ const (
 		"2efa59943f33359d2e8a968ff289d93e5fa444b624343167fe225820b16e8cf858ddc7690407ba61d4c338237a8" +
 		"cfcf3de6aa672fc60a557aa32fc67"
 
+	SDeviceKeyX = "96313d6c63e24e3372742bfdb1a33ba2c897dcd68ab8c753e4fbd48dca6b7f9a"
+	SDeviceKeyY = "1fb3269edd418857de1b39a4e4a44b92fa484caa722c228288f01d0c03a2c3d6"
+	SDeviceKeyD = "6ed542ad4783f0b18c833fadf2171273a35d969c581691ef704359cc7cf1e8c0"
+
 	EDeviceKeyX = "5a88d182bce5f42efa59943f33359d2e8a968ff289d93e5fa444b624343167fe"
 	EDeviceKeyY = "b16e8cf858ddc7690407ba61d4c338237a8cfcf3de6aa672fc60a557aa32fc67"
 	EDeviceKeyD = "c1917a1579949a042f1ba9fc53a2df9b1bc47adf31c10f813ed75702d1c1f136"
@@ -295,7 +299,8 @@ const (
 		"16d696c795f6e616d65f56f646f63756d656e745f6e756d626572f57264726976696e675f70726976696c65676" +
 		"573f56a69737375655f64617465f56b6578706972795f64617465f568706f727472616974f4"
 
-	DeviceAuthenticationHex = "TODO"
+	DeviceAuthenticationHex = "a1696465766963654d61638443a10105a0f65820e99521a85ad7891b806a07f8b5388a332d92c189a7bf293ee1" +
+		"f543405ae6824d"
 )
 
 func spec_ReaderRoot(t *testing.T) *x509.Certificate {
@@ -322,6 +327,19 @@ func spec_IACA(t *testing.T) *x509.Certificate {
 	}
 
 	return IACA
+}
+
+func spec_SDeviceKey(t *testing.T) *DeviceKey {
+	t.Helper()
+
+	return &DeviceKey{
+		Type: cose.KeyTypeEC2,
+		Params: map[any]any{
+			cose.KeyLabelEC2Curve: cose.CurveP256,
+			cose.KeyLabelEC2X:     decodeHex(t, SDeviceKeyX),
+			cose.KeyLabelEC2Y:     decodeHex(t, SDeviceKeyY),
+		},
+	}
 }
 
 func spec_EDeviceKeyPrivate(t *testing.T) *deviceKeyPrivateECDH {
@@ -534,7 +552,7 @@ func TestSpec_DeviceResponse_Decode(t *testing.T) {
 	}
 }
 
-func TestSpec_DeviceResponse_Verify(t *testing.T) {
+func TestSpec_DeviceResponse_IssuerAuth_Verify(t *testing.T) {
 	deviceResponseBytes := decodeHex(t, DeviceResponseHex)
 
 	var deviceResponse DeviceResponse
@@ -542,21 +560,34 @@ func TestSpec_DeviceResponse_Verify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TODO needs cose.MAC0
-	//deviceAuthenticationBytes := decodeHex(t, DeviceAuthenticationHex)
-	//deviceAuthenticationTagged, err := NewTaggedEncodedCBOR(deviceAuthenticationBytes)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//deviceResponse.Documents[0].DeviceSigned.DeviceAuth.Verify(
-	//	deviceAuthenticationTagged.TaggedValue,
-	//	)
-
 	iaca := spec_IACA(t)
 	err := deviceResponse.Documents[0].IssuerSigned.IssuerAuth.Verify(
 		[]*x509.Certificate{iaca},
 		iaca.NotBefore,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSpec_DeviceResponse_DeviceAuth_Verify(t *testing.T) {
+	deviceResponseBytes := decodeHex(t, DeviceResponseHex)
+
+	var deviceResponse DeviceResponse
+	if err := cbor.Unmarshal(deviceResponseBytes, &deviceResponse); err != nil {
+		t.Fatal(err)
+	}
+
+	deviceAuthenticationBytes := decodeHex(t, DeviceAuthenticationHex)
+	deviceAuthenticationTagged, err := NewTaggedEncodedCBOR(deviceAuthenticationBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO requires CoseMAC0
+	err = deviceResponse.Documents[0].DeviceSigned.DeviceAuth.Verify(
+		spec_SDeviceKey(t),
+		deviceAuthenticationTagged,
 	)
 	if err != nil {
 		t.Fatal(err)

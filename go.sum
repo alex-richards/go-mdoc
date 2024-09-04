@@ -1,3 +1,5 @@
+github.com/alex-richards/go-cose v0.0.0-20240816071327-fa0344c81cf0 h1:i1LOV1KxWFqPK3vKUfJ50eyYLhRzP82JnGJP8rA7vjU=
+github.com/alex-richards/go-cose v0.0.0-20240816071327-fa0344c81cf0/go.mod h1:df09OV91aHoQWLmy1KsDdYiagtXgyAwAl8vFeFn1gMc=
 github.com/biter777/countries v1.7.5 h1:MJ+n3+rSxWQdqVJU8eBy9RqcdH6ePPn4PJHocVWUa+Q=
 github.com/biter777/countries v1.7.5/go.mod h1:1HSpZ526mYqKJcpT5Ti1kcGQ0L0SrXWIaptUWjFfv2E=
 github.com/fxamacker/cbor/v2 v2.7.0 h1:iM5WgngdRBanHcxugY4JySA0nk1wZorNOpTgCMedv5E=
