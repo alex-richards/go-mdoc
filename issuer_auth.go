@@ -7,10 +7,8 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
-	"strings"
 	"time"
 
-	"github.com/biter777/countries"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
 )
@@ -75,9 +73,14 @@ func checkIACARootCertificate(certificate *x509.Certificate) error {
 			return ErrInvalidIACARootCertificate
 		}
 
-		if !strings.EqualFold(countries.ByName(country[0]).Alpha2(), country[0]) {
+		lenCountry := len(country[0])
+		if lenCountry != 2 && lenCountry != 3 {
 			return ErrInvalidIACARootCertificate
 		}
+
+		//if !strings.EqualFold(countries.ByName(country[0]).Alpha2(), country[0]) {
+		//	return ErrInvalidIACARootCertificate
+		//}
 	}
 
 	if len(certificate.Issuer.CommonName) == 0 {

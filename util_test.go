@@ -37,6 +37,23 @@ func decodeHex(t *testing.T, encoded string) []byte {
 	return decoded
 }
 
+func newTestUUID(t *testing.T, rand io.Reader) *UUID {
+	t.Helper()
+	uuid, err := NewUUID(rand)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return uuid
+}
+func newBenchmarkUUID(b *testing.B, rand io.Reader) *UUID {
+	b.Helper()
+	uuid, err := NewUUID(rand)
+	if err != nil {
+		b.Fatal(err)
+	}
+	return uuid
+}
+
 func expectCBOR(t *testing.T, expected, got []byte) {
 	t.Helper()
 
