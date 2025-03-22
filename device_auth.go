@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
+	"io"
 )
 
 var (
@@ -14,6 +15,81 @@ var (
 type DeviceAuth struct {
 	DeviceSignature *DeviceSignature `cbor:",omitempty"`
 	DeviceMAC       *DeviceMAC       `cbor:",omitempty"`
+}
+
+func NewDeviceAuth(
+	rand io.Reader,
+	privateSDeviceKey PrivateSDeviceKey,
+	deviceAuthentication DeviceAuthentication,
+) (*DeviceAuth, error) {
+	signer, err := newCoseSigner(privateSDeviceKey)
+	if err != nil {
+		return nil, err
+	}
+
+	deviceAuthenticationBytes, err := MarshalToNewTaggedEncodedCBOR(deviceAuthentication)
+	if err != nil {
+		return nil, err
+	}
+
+	deviceSignature := &DeviceSignature{
+		Headers: cose.Headers{
+			Protected: cose.ProtectedHeader{
+				cose.HeaderLabelAlgorithm: signer.Algorithm(),
+			},
+		},
+		Payload: deviceAuthenticationBytes.TaggedValue,
+	}
+
+	err = (*cose.Sign1Message)(deviceSignature).Sign(rand, []byte{}, signer)
+	if err != nil {
+		return nil, err
+	}
+	deviceSignature.Payload = nil
+
+	return &DeviceAuth{DeviceSignature: deviceSignature}, nil
+}
+
+func (da *DeviceAuth) Verify(
+	deviceKey DeviceKey,
+	deviceAuthentication DeviceAuthentication,
+) error {
+	switch {
+	case da.DeviceSignature != nil && da.DeviceMAC != nil:
+		return ErrMultipleDeviceAuthsPresent
+
+	case da.DeviceSignature != nil:
+		return verifyDeviceSignature(deviceKey, *da.DeviceSignature, deviceAuthentication)
+
+	case da.DeviceMAC != nil:
+		return errors.New("TODO coseMac0") // TODO
+
+	default:
+		return ErrNoDeviceAuthPresent
+	}
+}
+
+func verifyDeviceSignature(
+	deviceKey DeviceKey,
+	deviceSignature DeviceSignature,
+	deviceAuthentication DeviceAuthentication,
+) error {
+	deviceAuthenticationBytes, err := MarshalToNewTaggedEncodedCBOR(deviceAuthentication)
+	if err != nil {
+		return err
+	}
+
+	verifier, err := (*cose.Key)(&deviceKey).Verifier()
+	if err != nil {
+		return err
+	}
+
+	sign1 := (cose.Sign1Message)(deviceSignature)
+	sign1.Signature = deviceAuthenticationBytes.TaggedValue
+	return sign1.Verify(
+		[]byte{},
+		verifier,
+	)
 }
 
 type DeviceSignature cose.UntaggedSign1Message
@@ -46,50 +122,4 @@ func NewDeviceAuthentication(
 		DocType:              docType,
 		DeviceNameSpaceBytes: deviceNameSpaceBytes,
 	}
-}
-
-func (da *DeviceAuth) Verify(
-	deviceKey *DeviceKey,
-	deviceAuthenticationBytes *TaggedEncodedCBOR,
-) error {
-	switch {
-	case da.DeviceSignature != nil && da.DeviceMAC != nil:
-		return ErrMultipleDeviceAuthsPresent
-
-	case da.DeviceSignature != nil:
-		return verifyDeviceSignature(deviceKey, da.DeviceSignature, deviceAuthenticationBytes)
-
-	case da.DeviceMAC != nil:
-		return errors.New("TODO") // TODO
-
-	default:
-		return ErrNoDeviceAuthPresent
-	}
-}
-
-func verifyDeviceSignature(
-	deviceKey *DeviceKey,
-	deviceSignature *DeviceSignature,
-	deviceAuthenticationBytes *TaggedEncodedCBOR,
-) error {
-	signatureAlgorithm, err := deviceSignature.Headers.Protected.Algorithm()
-	if err != nil {
-		return ErrMissingAlgorithmHeader
-	}
-
-	key, err := (*cose.Key)(deviceKey).PublicKey()
-	if err != nil {
-		return err
-	}
-
-	verifier, err := cose.NewVerifier(signatureAlgorithm, key)
-	if err != nil {
-		return err
-	}
-
-	return (*cose.Sign1Message)(deviceSignature).VerifyDetached(
-		deviceAuthenticationBytes.TaggedValue,
-		[]byte{},
-		verifier,
-	)
 }

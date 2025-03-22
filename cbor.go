@@ -57,6 +57,15 @@ type TaggedEncodedCBOR struct {
 	UntaggedValue bstr
 }
 
+func MarshalToNewTaggedEncodedCBOR(value any) (*TaggedEncodedCBOR, error) {
+	untaggedValue, err := cbor.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewTaggedEncodedCBOR(untaggedValue)
+}
+
 func NewTaggedEncodedCBOR(untaggedValue []byte) (*TaggedEncodedCBOR, error) {
 	taggedValue, err := encodeModeTaggedEncodedCBOR.Marshal((bstr)(untaggedValue))
 	if err != nil {
@@ -84,5 +93,6 @@ func (tec *TaggedEncodedCBOR) UnmarshalCBOR(taggedValue []byte) error {
 
 	tec.TaggedValue = taggedValue
 	tec.UntaggedValue = untaggedValue
+
 	return nil
 }

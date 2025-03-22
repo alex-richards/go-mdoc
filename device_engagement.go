@@ -6,7 +6,11 @@ import (
 )
 
 var (
-    ErrUnrecognisedRetrievalMethod = errors.New("mdoc: unrecognized retrieval method")
+	ErrUnrecognisedRetrievalMethod = errors.New("mdoc: unrecognized retrieval method")
+)
+
+const (
+	DeviceEngagementVersion = "1.0"
 )
 
 type DeviceEngagement struct {
@@ -17,22 +21,17 @@ type DeviceEngagement struct {
 	ProtocolInfo           any                     `cbor:"4,keyasint,omitempty"` // TODO
 }
 
-func NewDeviceEngagementBLE(EDeviceKey *DeviceKey, centralClientUUID, peripheralServerUUID *UUID) (*DeviceEngagement, error) {
-	var eDeviceKeyBytes *TaggedEncodedCBOR
-	{
-		eDeviceKeyBytesUntagged, err := cbor.Marshal(EDeviceKey)
-		if err != nil {
-			return nil, err
-		}
-
-		eDeviceKeyBytes, err = NewTaggedEncodedCBOR(eDeviceKeyBytesUntagged)
-		if err != nil {
-			return nil, err
-		}
+func NewDeviceEngagementBLE(
+	eDeviceKey DeviceKey,
+	centralClientUUID, peripheralServerUUID *UUID,
+) (*DeviceEngagement, error) {
+	eDeviceKeyBytes, err := MarshalToNewTaggedEncodedCBOR(eDeviceKey)
+	if err != nil {
+		return nil, err
 	}
 
 	return &DeviceEngagement{
-		"1.0",
+		DeviceEngagementVersion,
 		Security{
 			CipherSuiteIdentifier: CipherSuiteVersion,
 			EDeviceKeyBytes:       *eDeviceKeyBytes,
@@ -40,7 +39,7 @@ func NewDeviceEngagementBLE(EDeviceKey *DeviceKey, centralClientUUID, peripheral
 		[]DeviceRetrievalMethod{
 			{
 				Type:    DeviceRetrievalMethodTypeBLE,
-				Version: 1,
+				Version: DeviceRetrievalVersion,
 				RetrievalOptions: BLEOptions{
 					SupportsCentralClient:    centralClientUUID != nil,
 					CentralClientUUID:        centralClientUUID,
@@ -76,6 +75,8 @@ const (
 	DeviceRetrievalMethodTypeBLE       DeviceRetrievalMethodType = 2
 	DeviceRetrievalMethodTypeWiFiAware DeviceRetrievalMethodType = 3
 )
+
+const DeviceRetrievalVersion = 1
 
 type DeviceRetrievalMethod struct {
 	Type             DeviceRetrievalMethodType

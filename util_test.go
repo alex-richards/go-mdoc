@@ -9,7 +9,7 @@ import (
 )
 
 func NewDeterministicRand() io.Reader {
-	return &deterministicRand{1, 2, 3, 4}
+	return deterministicRand{1, 2, 3, 4}
 }
 
 type deterministicRand []byte

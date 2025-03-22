@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -23,6 +24,39 @@ var (
 
 type ReaderAuth cose.UntaggedSign1Message
 
+func NewReaderAuth(
+	rand io.Reader,
+	readerAuthority ReaderAuthority,
+	readerAuthentication ReaderAuthentication,
+) (*ReaderAuth, error) {
+	signer, err := newCoseSigner(readerAuthority)
+	if err != nil {
+		return nil, err
+	}
+
+	readerAuthenticationBytes, err := MarshalToNewTaggedEncodedCBOR(readerAuthentication)
+	if err != nil {
+		return nil, err
+	}
+
+	readerAuth := &ReaderAuth{
+		Payload: readerAuthenticationBytes.TaggedValue,
+	}
+
+	err = (*cose.Sign1Message)(readerAuth).Sign(
+		rand,
+		[]byte{},
+		signer,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	readerAuth.Payload = nil
+
+	return readerAuth, nil
+}
+
 func (ra *ReaderAuth) MarshalCBOR() ([]byte, error) {
 	return cbor.Marshal((*cose.UntaggedSign1Message)(ra))
 }
@@ -31,9 +65,9 @@ func (ra *ReaderAuth) UnmarshalCBOR(data []byte) error {
 }
 
 func (ra *ReaderAuth) Verify(
-	readerAuthenticationBytes *TaggedEncodedCBOR,
 	rootCertificates []*x509.Certificate,
 	now time.Time,
+	readerAuthentication ReaderAuthentication,
 ) error {
 	chain, err := x509Chain(ra.Headers.Unprotected)
 	if err != nil {
@@ -46,7 +80,7 @@ func (ra *ReaderAuth) Verify(
 		now,
 		nil,
 		nil,
-		checkReaderAuthenticationCertificate,
+		validateReaderAuthenticationCertificate,
 	)
 	if err != nil {
 		return err
@@ -62,14 +96,20 @@ func (ra *ReaderAuth) Verify(
 		return err
 	}
 
-	return (*cose.Sign1Message)(ra).VerifyDetached(
-		readerAuthenticationBytes.TaggedValue,
+	readerAuthenticationBytes, err := MarshalToNewTaggedEncodedCBOR(readerAuthentication)
+	if err != nil {
+		return err
+	}
+
+	sign1 := (cose.Sign1Message)(*ra)
+	sign1.Payload = readerAuthenticationBytes.TaggedValue
+	return sign1.Verify(
 		[]byte{},
 		verifier,
 	)
 }
 
-func checkReaderAuthenticationCertificate(certificate *x509.Certificate, signer *x509.Certificate) error {
+func validateReaderAuthenticationCertificate(certificate *x509.Certificate, signer *x509.Certificate) error {
 	if certificate.Version != 3 {
 		return ErrInvalidReaderAuthCertificate
 	}

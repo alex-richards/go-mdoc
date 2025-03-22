@@ -7,6 +7,8 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
+	"io"
+	"reflect"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -14,12 +16,61 @@ import (
 )
 
 var (
-	ErrInvalidIACARootCertificate       = errors.New("invalid IACA root certificate")
-	ErrInvalidIACALinkCertificate       = errors.New("invalid IACA link certificate")
-	ErrInvalidDocumentSignerCertificate = errors.New("invalid document signer certificate")
+	ErrInvalidIACARootCertificate        = errors.New("invalid IACA root certificate")
+	ErrUnexpectedIntermediateCertificate = errors.New("unexpected intermediate certificate")
+	ErrInvalidDocumentSignerCertificate  = errors.New("invalid document signer certificate")
+)
+
+const (
+	MobileSecurityObjectVersion = "1.0"
+)
+
+const (
+	iacaMaxAgeYears          = 20
+	documentSignerMaxAgeDays = 457
+)
+
+var (
+	documentSignerKeyUsage = asn1.ObjectIdentifier{1, 0, 18013, 5, 1, 2}
 )
 
 type IssuerAuth cose.UntaggedSign1Message
+
+func NewIssuerAuth(
+	rand io.Reader,
+	issuerAuthority IssuerAuthority,
+	mobileSecurityObject MobileSecurityObject,
+) (*IssuerAuth, error) {
+	mobileSecurityObjectBytes, err := MarshalToNewTaggedEncodedCBOR(mobileSecurityObject)
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := newCoseSigner(issuerAuthority)
+	if err != nil {
+		return nil, err
+	}
+
+	issuerAuth := &IssuerAuth{
+		Headers: cose.Headers{
+			Protected: cose.ProtectedHeader{
+				cose.HeaderLabelAlgorithm: signer.Algorithm(),
+			},
+		},
+		Payload: mobileSecurityObjectBytes.TaggedValue,
+	}
+
+	err = (*cose.Sign1Message)(issuerAuth).Sign(
+		rand,
+		[]byte{},
+		signer,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return issuerAuth, nil
+}
 
 func (ia *IssuerAuth) MarshalCBOR() ([]byte, error) {
 	return cbor.Marshal((*cose.UntaggedSign1Message)(ia))
@@ -38,9 +89,9 @@ func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time
 		rootCertificates,
 		chain,
 		now,
-		checkIACARootCertificate,
-		nil,
-		checkDocumentSignerCertificate,
+		validateIACARootCertificate,
+		validateIntermediateDocumentCertificate,
+		validateDocumentSignerCertificate,
 	)
 	if err != nil {
 		return err
@@ -62,13 +113,13 @@ func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time
 	)
 }
 
-func checkIACARootCertificate(certificate *x509.Certificate) error {
-	if certificate.Version != 3 {
+func validateIACARootCertificate(iacaCertificate *x509.Certificate) error {
+	if iacaCertificate.Version != 3 {
 		return ErrInvalidIACARootCertificate
 	}
 
 	{
-		country := certificate.Issuer.Country
+		country := iacaCertificate.Issuer.Country
 		if len(country) != 1 {
 			return ErrInvalidIACARootCertificate
 		}
@@ -78,43 +129,44 @@ func checkIACARootCertificate(certificate *x509.Certificate) error {
 			return ErrInvalidIACARootCertificate
 		}
 
+		// TODO
 		//if !strings.EqualFold(countries.ByName(country[0]).Alpha2(), country[0]) {
 		//	return ErrInvalidIACARootCertificate
 		//}
 	}
 
-	if len(certificate.Issuer.CommonName) == 0 {
+	if len(iacaCertificate.Issuer.CommonName) == 0 {
 		return ErrInvalidIACARootCertificate
 	}
 
 	{
-		maxNotAfter := certificate.NotBefore.AddDate(20, 0, 0)
-		if certificate.NotAfter.Compare(maxNotAfter) > 0 {
+		maxNotAfter := iacaCertificate.NotBefore.AddDate(iacaMaxAgeYears, 0, 0)
+		if iacaCertificate.NotAfter.Compare(maxNotAfter) > 0 {
 			return ErrInvalidIACARootCertificate
 		}
 	}
 
-	if !bytes.Equal(certificate.RawIssuer, certificate.RawSubject) {
+	if !bytes.Equal(iacaCertificate.RawIssuer, iacaCertificate.RawSubject) {
 		return ErrInvalidIACARootCertificate
 	}
 
-	if certificate.PublicKeyAlgorithm != x509.ECDSA {
+	if iacaCertificate.PublicKeyAlgorithm != x509.ECDSA {
 		return ErrInvalidIACARootCertificate
 	}
 
-	if certificate.KeyUsage != x509.KeyUsageCertSign|x509.KeyUsageCRLSign {
+	if iacaCertificate.KeyUsage != x509.KeyUsageCertSign|x509.KeyUsageCRLSign {
 		return ErrInvalidIACARootCertificate
 	}
 
-	if !certificate.IsCA {
+	if !iacaCertificate.IsCA {
 		return ErrInvalidIACARootCertificate
 	}
 
-	if certificate.MaxPathLen != 0 {
+	if iacaCertificate.MaxPathLen != 0 {
 		return ErrInvalidIACARootCertificate
 	}
 
-	switch certificate.SignatureAlgorithm {
+	switch iacaCertificate.SignatureAlgorithm {
 	case x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512:
 		// allow
 	default:
@@ -124,42 +176,46 @@ func checkIACARootCertificate(certificate *x509.Certificate) error {
 	return nil
 }
 
-func checkIACALinkCertificate(certificate *x509.Certificate, previous *x509.Certificate) error {
-	return errors.New("TODO") // TODO
+func validateIntermediateDocumentCertificate(_ *x509.Certificate, _ *x509.Certificate) error {
+	return ErrUnexpectedIntermediateCertificate
 }
 
-func checkDocumentSignerCertificate(certificate *x509.Certificate, previous *x509.Certificate) error {
-	if certificate.Version != 3 {
+func validateDocumentSignerCertificate(documentSignerCertificate *x509.Certificate, iacaCertificate *x509.Certificate) error {
+	if documentSignerCertificate.Version != 3 {
 		return ErrInvalidDocumentSignerCertificate
 	}
 
 	{
-		maxNotAfter := certificate.NotBefore.AddDate(0, 0, 457)
-		if certificate.NotAfter.Compare(maxNotAfter) > 0 {
+		maxNotAfter := documentSignerCertificate.NotBefore.AddDate(0, 0, documentSignerMaxAgeDays)
+		if documentSignerCertificate.NotAfter.Compare(maxNotAfter) > 0 {
 			return ErrInvalidDocumentSignerCertificate
 		}
 	}
 
-	//certificate.Subject.Country // TODO
+	if !reflect.DeepEqual(documentSignerCertificate.Subject.Country, iacaCertificate.Subject.Country) {
+		return ErrInvalidDocumentSignerCertificate
+	}
 
-	//certificate.Subject.Province // TODO
+	if len(iacaCertificate.Subject.Province) != 0 && !reflect.DeepEqual(documentSignerCertificate.Subject.Province, iacaCertificate.Subject.Province) {
+		return ErrInvalidDocumentSignerCertificate
+	}
 
-	switch certificate.SignatureAlgorithm {
+	switch documentSignerCertificate.SignatureAlgorithm {
 	case x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512:
 		// allow
 		//TODO edwards
 	default:
 		return ErrInvalidDocumentSignerCertificate
 	}
-	switch certificate.PublicKeyAlgorithm {
+	switch documentSignerCertificate.PublicKeyAlgorithm {
 	case x509.ECDSA:
-		_, ok := certificate.PublicKey.(*ecdsa.PublicKey)
+		_, ok := documentSignerCertificate.PublicKey.(*ecdsa.PublicKey)
 		if !ok {
 			return ErrInvalidDocumentSignerCertificate
 		}
 
 	case x509.Ed25519:
-		_, ok := certificate.PublicKey.(*ed25519.PublicKey)
+		_, ok := documentSignerCertificate.PublicKey.(*ed25519.PublicKey)
 		if !ok {
 			return ErrInvalidDocumentSignerCertificate
 		}
@@ -168,18 +224,18 @@ func checkDocumentSignerCertificate(certificate *x509.Certificate, previous *x50
 		return ErrInvalidDocumentSignerCertificate
 	}
 
-	if !bytes.Equal(certificate.AuthorityKeyId, previous.SubjectKeyId) {
+	if !bytes.Equal(documentSignerCertificate.AuthorityKeyId, iacaCertificate.SubjectKeyId) {
 		return ErrInvalidDocumentSignerCertificate
 	}
 
-	if certificate.KeyUsage != x509.KeyUsageDigitalSignature {
+	if documentSignerCertificate.KeyUsage != x509.KeyUsageDigitalSignature {
 		return ErrInvalidDocumentSignerCertificate
 	}
 
-	if len(certificate.UnknownExtKeyUsage) != 1 {
+	if len(documentSignerCertificate.UnknownExtKeyUsage) != 1 {
 		return ErrInvalidDocumentSignerCertificate
 	}
-	if !certificate.UnknownExtKeyUsage[0].Equal(asn1.ObjectIdentifier{1, 0, 18013, 5, 1, 2}) {
+	if !documentSignerCertificate.UnknownExtKeyUsage[0].Equal(documentSignerKeyUsage) {
 		return ErrInvalidDocumentSignerCertificate
 	}
 
@@ -210,29 +266,62 @@ func (ia *IssuerAuth) MobileSecurityObject() (*MobileSecurityObject, error) {
 }
 
 type MobileSecurityObject struct {
-	Version         string          `cbor:"version"`
-	DigestAlgorithm DigestAlgorithm `cbor:"digestAlgorithm"`
-	ValueDigests    ValueDigests    `cbor:"valueDigests"`
-	DeviceKeyInfo   DeviceKeyInfo   `cbor:"deviceKeyInfo"`
-	DocType         DocType         `cbor:"docType"`
-	ValidityInfo    ValidityInfo    `cbor:"validityInfo"`
+	Version         string           `cbor:"version"`
+	DigestAlgorithm DigestAlgorithm  `cbor:"digestAlgorithm"`
+	ValueDigests    NameSpaceDigests `cbor:"valueDigests"`
+	DeviceKeyInfo   DeviceKeyInfo    `cbor:"deviceKeyInfo"`
+	DocType         DocType          `cbor:"docType"`
+	ValidityInfo    ValidityInfo     `cbor:"validityInfo"`
 }
 
-type DigestAlgorithm string
+func NewMobileSecurityObject(
+	docType DocType,
+	digestAlgorithm DigestAlgorithm,
+	nameSpaces IssuerNameSpaces,
+	deviceKey DeviceKey,
+	validityInfo ValidityInfo,
+	keyAuthorizations *KeyAuthorizations,
+	keyInfo *KeyInfo,
+) (*MobileSecurityObject, error) {
+	hash, err := digestAlgorithm.Hash()
+	if err != nil {
+		return nil, err
+	}
 
-const (
-	DigestAlgorithmSHA256 DigestAlgorithm = "SHA-256"
-	DigestAlgorithmSHA384 DigestAlgorithm = "SHA-384"
-	DigestAlgorithmSHA512 DigestAlgorithm = "SHA-512"
-)
+	nameSpaceDigests := make(NameSpaceDigests, len(nameSpaces))
+	for nameSpace, issuerSignedItemBytess := range nameSpaces {
+		valueDigests := make(ValueDigests, len(issuerSignedItemBytess))
+		nameSpaceDigests[nameSpace] = valueDigests
+		for i, issuerSignedItemBytes := range issuerSignedItemBytess {
+			digestId := (DigestID)(i)
+			hash.Reset()
+			hash.Write(issuerSignedItemBytes.TaggedValue)
+			h := hash.Sum(nil)
+			valueDigests[digestId] = h
+		}
+	}
 
-type ValueDigests map[NameSpace]DigestIDs
-type DigestIDs map[DigestID]Digest
+	return &MobileSecurityObject{
+		Version:         MobileSecurityObjectVersion,
+		DigestAlgorithm: digestAlgorithm,
+		ValueDigests:    nameSpaceDigests,
+		DeviceKeyInfo: DeviceKeyInfo{
+			DeviceKey:         deviceKey,
+			KeyAuthorizations: keyAuthorizations,
+			KeyInfo:           keyInfo,
+		},
+		DocType:      docType,
+		ValidityInfo: validityInfo,
+	}, nil
+}
+
+type NameSpaceDigests map[NameSpace]ValueDigests
+type ValueDigests map[DigestID]Digest
 type DigestID uint
 type Digest []byte
 
 type DeviceKeyInfo struct {
-	DeviceKey         *DeviceKey         `cbor:"deviceKey"`
+	DeviceKey         DeviceKey          `cbor:"deviceKey"`
 	KeyAuthorizations *KeyAuthorizations `cbor:"keyAuthorizations,omitempty"`
 	KeyInfo           *KeyInfo           `cbor:"keyInfo,omitEmpty"`
 }
@@ -240,6 +329,33 @@ type DeviceKeyInfo struct {
 type KeyAuthorizations struct {
 	NameSpaces   *AuthorizedNameSpaces   `cbor:"nameSpaces,omitempty"`
 	DataElements *AuthorizedDataElements `cbor:"dataElements,omitempty"`
+}
+
+func (ka *KeyAuthorizations) Contains(nameSpace NameSpace, dataElementIdentifier DataElementIdentifier) bool {
+	if ka == nil {
+		return false
+	}
+
+	if ka.NameSpaces != nil {
+		for _, authorizedNameSpace := range *ka.NameSpaces {
+			if nameSpace == authorizedNameSpace {
+				return true
+			}
+		}
+	}
+
+	if ka.DataElements != nil {
+		authorizedDataElementIdentifiers, ok := (*ka.DataElements)[nameSpace]
+		if ok {
+			for _, authorizedDataElement := range authorizedDataElementIdentifiers {
+				if dataElementIdentifier == authorizedDataElement {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 type AuthorizedNameSpaces []NameSpace

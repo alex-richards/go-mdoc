@@ -4,7 +4,6 @@ import (
 	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/ecdh"
 	"io"
 
 	"golang.org/x/crypto/hkdf"
@@ -21,21 +20,14 @@ const (
 var readerIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 0}
 var deviceIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 1}
 
-//func GenerateESessionPrivateKey(rand io.Reader, curve ecdh.Curve) (*ecdh.PrivateKey, error) {
-//	if curve == nil {
-//		curve = ecdh.P256()
-//	}
-//	return curve.GenerateKey(rand)
-//}
-
 func SKReader(
-	DeviceKeyPrivate DeviceKeyPrivate,
-	DeviceKey *DeviceKey,
+	privateEDeviceKey PrivateEDeviceKey,
+	deviceKey *DeviceKey,
 	sessionTranscriptBytes []byte,
 ) ([]byte, error) {
 	return sk(
-		DeviceKeyPrivate,
-		DeviceKey,
+		privateEDeviceKey,
+		deviceKey,
 		sessionTranscriptBytes,
 		skReaderInfo,
 		skReaderLength,
@@ -43,13 +35,13 @@ func SKReader(
 }
 
 func SKDevice(
-	DeviceKeyPrivate DeviceKeyPrivate,
-	DeviceKey *DeviceKey,
+	privateEDeviceKey PrivateEDeviceKey,
+	deviceKey *DeviceKey,
 	sessionTranscriptBytes []byte,
 ) ([]byte, error) {
 	return sk(
-		DeviceKeyPrivate,
-		DeviceKey,
+		privateEDeviceKey,
+		deviceKey,
 		sessionTranscriptBytes,
 		skDeviceInfo,
 		skDeviceLength,
@@ -57,23 +49,13 @@ func SKDevice(
 }
 
 func sk(
-	DeviceKeyPrivate DeviceKeyPrivate,
-	DeviceKey *DeviceKey,
+	privateEDeviceKey PrivateEDeviceKey,
+	deviceKey *DeviceKey,
 	sessionTranscriptBytes []byte,
 	info string,
 	length int,
 ) ([]byte, error) {
-	privateKey, ok := DeviceKeyPrivate.(*deviceKeyPrivateECDH)
-	if !ok {
-		return nil, ErrUnsupportedAlgorithm
-	}
-
-	publicKey, err := DeviceKey.publicKeyECDH()
-	if err != nil {
-		return nil, err
-	}
-
-	sharedSecret, err := (*ecdh.PrivateKey)(privateKey).ECDH(publicKey)
+	sharedSecret, err := privateEDeviceKey.Agree(*deviceKey)
 	if err != nil {
 		return nil, err
 	}
