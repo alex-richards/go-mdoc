@@ -2,10 +2,11 @@ package mdoc
 
 import (
 	"errors"
+	"github.com/google/go-cmp/cmp"
 	"testing"
 )
 
-func TestNewSDeviceKey(t *testing.T) {
+func Test_NewSDeviceKey(t *testing.T) {
 	rand := NewDeterministicRand()
 
 	tests := []struct {
@@ -150,22 +151,18 @@ func TestNewSDeviceKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			SDeviceKey, err := NewSDeviceKey(rand, tt.curve, tt.mode)
+			_, err := NewSDeviceKey(rand, tt.curve, tt.mode)
 			if err != nil && !errors.Is(err, tt.wantErr) {
 				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err == nil && tt.wantErr != nil {
 				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
 			}
-			if err != nil {
-				return
-			}
-			_ = SDeviceKey
 		})
 	}
 }
 
-func TestNewEDeviceKey(t *testing.T) {
+func Test_NewEDeviceKey(t *testing.T) {
 	rand := NewDeterministicRand()
 
 	tests := []struct {
@@ -232,23 +229,19 @@ func TestNewEDeviceKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			EDeviceKey, err := NewEDeviceKey(rand, tt.curve)
+			_, err := NewEDeviceKey(rand, tt.curve)
 			if err != nil && !errors.Is(err, tt.wantErr) {
 				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err == nil && tt.wantErr != nil {
 				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
 			}
-			if err != nil {
-				return
-			}
-			_ = EDeviceKey
 		})
 	}
 }
 
-func TestDeviceKeyPrivate_DeviceKey(t *testing.T) {
-	//rand := NewDeterministicRand()
+func Test_PrivateSDeviceKey_DeviceKey(t *testing.T) {
+	rand := NewDeterministicRand()
 
 	tests := []struct {
 		name  string
@@ -284,17 +277,78 @@ func TestDeviceKeyPrivate_DeviceKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			//EDeviceKeyPrivate, err := NewSDeviceKey(rand, tt.curve, tt.mode)
-			//if err != nil {
-			//	t.Fatal(err)
-			//}
+			privateDeviceKey, err := NewSDeviceKey(rand, tt.curve, tt.mode)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-			//EDeviceKey, err := EDeviceKeyPrivate.DeviceKey()
-			//if err != nil {
-			//	t.Fatal(err)
-			//}
+			deviceKey, err := privateDeviceKey.DeviceKey()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-			//_ = EDeviceKey // TODO test content
+			_ = deviceKey // TODO test content
+		})
+	}
+}
+
+func Test_PrivateSDeviceKey_Agree(t *testing.T) {
+	rand := NewDeterministicRand()
+
+	tests := []struct {
+		name  string
+		curve Curve
+	}{
+		{
+			name:  "CurveP256",
+			curve: CurveP256,
+		},
+		{
+			name:  "CurveP384",
+			curve: CurveP384,
+		},
+		{
+			name:  "CurveP521",
+			curve: CurveP521,
+		},
+		{
+			name:  "CurveX25519",
+			curve: CurveX25519,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			leftKey, err := NewEDeviceKey(rand, tt.curve)
+			if err != nil {
+				t.Fatal(err)
+			}
+			leftDeviceKey, err := leftKey.DeviceKey()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			rightKey, err := NewEDeviceKey(rand, tt.curve)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rightDeviceKey, err := rightKey.DeviceKey()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			leftAgreed, err := leftKey.Agree(*rightDeviceKey)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rightAgreed, err := rightKey.Agree(*leftDeviceKey)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if diff := cmp.Diff(leftAgreed, rightAgreed); diff != "" {
+				t.Fatal(diff)
+			}
 		})
 	}
 }

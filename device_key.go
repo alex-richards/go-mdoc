@@ -107,26 +107,17 @@ func (dk *DeviceKey) UnmarshalCBOR(data []byte) error {
 }
 
 func (dk *DeviceKey) publicKeyECDH() (*ecdh.PublicKey, error) {
-	panic("TODO")
-	//if dk.Type != cose.KeyTypeEC2 {
-	//	return nil, ErrUnsupportedAlgorithm
-	//}
-	//
-	//crv, x, y, _ := (*cose.Key)(dk).EC2()
-	//
-	//curve, err := coseCurveToECDH(crv)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//lenX := len(x)
-	//point := make([]byte, 1+lenX+len(y))
-	//point[0] = 0x04
-	//
-	//copy(point[1:], x)
-	//copy(point[1+lenX:], y)
-	//
-	//return curve.NewPublicKey(point)
+	publicKey, err := (*cose.Key)(dk).PublicKey()
+	if err != nil {
+		return nil, err
+	}
+
+	ecdsaKey, ok := publicKey.(ecdsa.PublicKey)
+	if !ok {
+		return nil, ErrUnsupportedAlgorithm
+	}
+
+	return ecdsaKey.ECDH()
 }
 
 type privateDeviceKeyECDH struct {
@@ -148,12 +139,22 @@ func (pdk *privateDeviceKeyECDH) Curve() Curve {
 }
 
 func (pdk *privateDeviceKeyECDH) Agree(deviceKey DeviceKey) ([]byte, error) {
-	publicKey, err := deviceKey.publicKeyECDH()
+	publicKey, err := (*cose.Key)(&deviceKey).PublicKey()
 	if err != nil {
 		return nil, err
 	}
 
-	return pdk.key.ECDH(publicKey)
+	ecdsaKey, ok := publicKey.(ecdsa.PublicKey)
+	if !ok {
+		return nil, ErrUnsupportedAlgorithm
+	}
+
+	ecdhKey, err := ecdsaKey.ECDH()
+	if err != nil {
+		return nil, err
+	}
+
+	return pdk.key.ECDH(ecdhKey)
 }
 
 func (pdk *privateDeviceKeyECDH) Mode() SDeviceKeyMode {

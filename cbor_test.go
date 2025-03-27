@@ -11,6 +11,7 @@ import (
 
 const (
 	cborMajorTypeBstr        = 2 << 5
+	cborMajorTypeStr         = 3 << 5
 	cborMajorTypeMap         = 5 << 5
 	cborMajorTypeTaggedValue = 6 << 5
 )
@@ -26,7 +27,58 @@ const (
 	cborEmptyMap = cborMajorTypeMap | 0
 )
 
-func TestNewTaggedEncodedCBOR(t *testing.T) {
+func Test_MarshalToTaggedEncodedCBOR(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+		want  *TaggedEncodedCBOR
+	}{
+		{
+			name:  "string",
+			value: "string",
+			want: &TaggedEncodedCBOR{
+				TaggedValue: []byte{
+					cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+					cborMajorTypeBstr | 7,
+					cborMajorTypeStr | 6, 's', 't', 'r', 'i', 'n', 'g',
+				},
+				UntaggedValue: []byte{
+					cborMajorTypeBstr | 7,
+					cborMajorTypeStr | 6, 's', 't', 'r', 'i', 'n', 'g',
+				},
+			},
+		},
+		{
+			name:  "nil",
+			value: nil,
+			want: &TaggedEncodedCBOR{
+				TaggedValue: []byte{
+					cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+					cborMajorTypeBstr | 1,
+					cborNull,
+				},
+				UntaggedValue: []byte{
+					cborMajorTypeBstr | 1,
+					cborNull,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MarshalToNewTaggedEncodedCBOR(tt.value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatal(diff)
+			}
+		})
+	}
+}
+
+func Test_NewTaggedEncodedCBOR(t *testing.T) {
 	tests := []struct {
 		name          string
 		untaggedValue []byte
@@ -79,7 +131,7 @@ func TestNewTaggedEncodedCBOR(t *testing.T) {
 	}
 }
 
-func TestTaggedEncodedCBOR_MarshalCBOR(t *testing.T) {
+func Test_TaggedEncodedCBOR_MarshalCBOR(t *testing.T) {
 	tests := []struct {
 		name              string
 		taggedEncodedCBOR TaggedEncodedCBOR
@@ -151,7 +203,7 @@ func TestTaggedEncodedCBOR_MarshalCBOR(t *testing.T) {
 	}
 }
 
-func TestTaggedEncodedCBOR_UnmarshalCBOR(t *testing.T) {
+func Test_TaggedEncodedCBOR_UnmarshalCBOR(t *testing.T) {
 	tests := []struct {
 		name    string
 		data    []byte

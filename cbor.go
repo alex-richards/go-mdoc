@@ -72,9 +72,16 @@ func NewTaggedEncodedCBOR(untaggedValue []byte) (*TaggedEncodedCBOR, error) {
 		return nil, err
 	}
 
+	lenTagged := len(taggedValue)
+	lenUntagged := len(untaggedValue)
+	lenHeader := lenTagged - lenUntagged
+	if lenHeader < 2 {
+		panic("TODO")
+	}
+
 	return &TaggedEncodedCBOR{
 		TaggedValue:   taggedValue,
-		UntaggedValue: untaggedValue,
+		UntaggedValue: taggedValue[lenHeader-1:],
 	}, nil
 }
 

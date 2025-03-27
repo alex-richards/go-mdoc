@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func TestX509Chain(t *testing.T) {
+func Test_x509Chain(t *testing.T) {
 	rand := NewDeterministicRand()
 	cert := createCA(t, rand, x509.Certificate{
 		Subject:   pkix.Name{CommonName: "cert"},

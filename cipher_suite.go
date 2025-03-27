@@ -29,16 +29,6 @@ const (
 	CurveBrainpoolP512r1
 )
 
-var (
-	SupportedCurves = [...]Curve{
-		CurveP256,
-		CurveP384,
-		CurveP521,
-		CurveX25519,
-		CurveEd25519,
-	}
-)
-
 type Signer interface {
 	Curve() Curve
 	Sign(rand io.Reader, data []byte) ([]byte, error)
