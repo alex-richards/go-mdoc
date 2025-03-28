@@ -337,11 +337,11 @@ func Test_PrivateSDeviceKey_Agree(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			leftAgreed, err := leftKey.Agree(*rightDeviceKey)
+			leftAgreed, err := leftKey.Agree(rightDeviceKey)
 			if err != nil {
 				t.Fatal(err)
 			}
-			rightAgreed, err := rightKey.Agree(*leftDeviceKey)
+			rightAgreed, err := rightKey.Agree(leftDeviceKey)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -11,7 +11,7 @@ var (
 	ErrInvalidCertificate = errors.New("invalid certificate")
 )
 
-func verifyChain(
+func x500VerifyChain(
 	rootCertificates []*x509.Certificate,
 	chain []*x509.Certificate,
 	now time.Time,
@@ -35,7 +35,7 @@ func verifyChain(
 	{
 		firstCertificate := chain[0]
 		for _, candidateRootCertificate := range rootCertificates {
-			if err = checkCertificateSignature(firstCertificate, candidateRootCertificate); err == nil {
+			if err = x500VerifyCertificateSignature(firstCertificate, candidateRootCertificate); err == nil {
 				rootCertificate = candidateRootCertificate
 				break
 			}
@@ -53,7 +53,7 @@ func verifyChain(
 	// check chain signatures
 	previousCertificate := rootCertificate
 	for _, certificate := range chain {
-		if err = checkCertificateSignature(certificate, previousCertificate); err != nil {
+		if err = x500VerifyCertificateSignature(certificate, previousCertificate); err != nil {
 			return nil, err
 		}
 		previousCertificate = certificate
@@ -80,14 +80,14 @@ func verifyChain(
 	}
 
 	// check leaf certificate is current
-	if err = checkCertificateValidity(leafCertificate, now); err != nil {
+	if err = x500VerifyCertificateValidity(leafCertificate, now); err != nil {
 		return nil, err
 	}
 
 	return leafCertificate, nil
 }
 
-func checkCertificateSignature(certificate *x509.Certificate, signer *x509.Certificate) error {
+func x500VerifyCertificateSignature(certificate *x509.Certificate, signer *x509.Certificate) error {
 	// issuer matches signer's subject
 	if !bytes.Equal(certificate.RawIssuer, signer.RawSubject) {
 		return ErrInvalidCertificate
@@ -109,7 +109,7 @@ func checkCertificateSignature(certificate *x509.Certificate, signer *x509.Certi
 	return nil
 }
 
-func checkCertificateValidity(certificate *x509.Certificate, now time.Time) error {
+func x500VerifyCertificateValidity(certificate *x509.Certificate, now time.Time) error {
 	// cert currently valid
 	if now.After(certificate.NotAfter) {
 		return ErrInvalidCertificate

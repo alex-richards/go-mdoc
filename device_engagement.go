@@ -22,7 +22,7 @@ type DeviceEngagement struct {
 }
 
 func NewDeviceEngagementBLE(
-	eDeviceKey DeviceKey,
+	eDeviceKey *DeviceKey,
 	centralClientUUID, peripheralServerUUID *UUID,
 ) (*DeviceEngagement, error) {
 	eDeviceKeyBytes, err := MarshalToNewTaggedEncodedCBOR(eDeviceKey)

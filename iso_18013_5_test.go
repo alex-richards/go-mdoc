@@ -353,7 +353,7 @@ func spec_EDeviceKeyPrivate(t *testing.T) PrivateEDeviceKey {
 	}
 
 	return &privateDeviceKeyECDH{
-		key:   *EDeviceKey,
+		key:   EDeviceKey,
 		curve: CurveP256,
 	}
 }
@@ -385,7 +385,7 @@ func spec_EReaderKeyPrivate(t *testing.T) PrivateEDeviceKey {
 	}
 
 	return &privateDeviceKeyECDH{
-		key:   *EReaderKey,
+		key:   EReaderKey,
 		curve: CurveP256,
 	}
 }

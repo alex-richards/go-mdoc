@@ -3,6 +3,7 @@ package mdoc
 import (
 	"crypto/x509"
 	"errors"
+	"io"
 
 	"github.com/veraison/go-cose"
 )
@@ -47,7 +48,39 @@ func (c Curve) coseSignAlgorithm() (cose.Algorithm, error) {
 	}
 }
 
-func x509Chain(from cose.UnprotectedHeader) ([]*x509.Certificate, error) {
+func coseSign(rand io.Reader, signer Signer, authStruct any) error {
+	sign1Message, ok := authStruct.(*cose.UntaggedSign1Message)
+	if !ok {
+		panic("authStructure is not a UntaggedSign1Message")
+	}
+
+	coseSigner, err := newCoseSigner(signer)
+	if err != nil {
+		return err
+	}
+
+	return sign1Message.Sign(rand, []byte{}, coseSigner)
+}
+
+func coseSignDetached(rand io.Reader, signer Signer, authStruct any, payload []byte) error {
+	sign1Message, ok := authStruct.(*cose.UntaggedSign1Message)
+	if !ok {
+		panic("authStructure is not a UntaggedSign1Message")
+	}
+
+	coseSigner, err := newCoseSigner(signer)
+	if err != nil {
+		return err
+	}
+
+	sign1Message.Payload = payload
+	err = sign1Message.Sign(rand, []byte{}, coseSigner)
+	sign1Message.Payload = nil
+
+	return err
+}
+
+func coseX509Chain(from cose.UnprotectedHeader) ([]*x509.Certificate, error) {
 	x509ChainHeader := from[cose.HeaderLabelX5Chain]
 
 	switch x509ChainEncoded := x509ChainHeader.(type) {

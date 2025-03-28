@@ -31,7 +31,7 @@ func NewDeviceRequest(docRequests []DocRequest) *DeviceRequest {
 func (dr *DeviceRequest) Verify(
 	rootCertificates []*x509.Certificate,
 	now time.Time,
-	sessionTranscript SessionTranscript,
+	sessionTranscript *SessionTranscript,
 ) error {
 	if dr.Version != DeviceRequestVersion {
 		return ErrDeviceRequestUnsupportedVersion
@@ -53,7 +53,7 @@ type DocRequest struct {
 	ReaderAuth        *ReaderAuth       `cbor:"readerAuth,omitempty"`
 }
 
-func NewDocRequest(itemsRequest ItemsRequest) (*DocRequest, error) {
+func NewDocRequest(itemsRequest *ItemsRequest) (*DocRequest, error) {
 	itemsRequestBytes, err := MarshalToNewTaggedEncodedCBOR(itemsRequest)
 	if err != nil {
 		return nil, err
@@ -68,17 +68,20 @@ func NewDocRequest(itemsRequest ItemsRequest) (*DocRequest, error) {
 func NewAuthenticatedDocRequest(
 	rand io.Reader,
 	readerAuthority ReaderAuthority,
-	itemsRequest ItemsRequest,
-	sessionTranscript SessionTranscript,
+	itemsRequest *ItemsRequest,
+	sessionTranscript *SessionTranscript,
 ) (*DocRequest, error) {
 	docRequest, err := NewDocRequest(itemsRequest)
 	if err != nil {
 		return nil, err
 	}
 
-	readerAuthentication := NewReaderAuthentication(sessionTranscript, docRequest.ItemsRequestBytes)
+	readerAuthenticationBytes, err := NewReaderAuthenticationBytes(sessionTranscript, &docRequest.ItemsRequestBytes)
+	if err != nil {
+		return nil, err
+	}
 
-	docRequest.ReaderAuth, err = NewReaderAuth(rand, readerAuthority, *readerAuthentication)
+	docRequest.ReaderAuth, err = NewReaderAuth(rand, readerAuthority, readerAuthenticationBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -100,21 +103,24 @@ func (dr DocRequest) ItemsRequest() (*ItemsRequest, error) {
 func (dr DocRequest) Verify(
 	rootCertificates []*x509.Certificate,
 	now time.Time,
-	sessionTranscript SessionTranscript,
+	sessionTranscript *SessionTranscript,
 ) error {
 	if dr.ReaderAuth == nil {
 		return errors.New("missing ReaderAuth") // TODO
 	}
 
-	readerAuthentication := NewReaderAuthentication(
+	readerAuthenticationBytes, err := NewReaderAuthenticationBytes(
 		sessionTranscript,
-		dr.ItemsRequestBytes,
+		&dr.ItemsRequestBytes,
 	)
+	if err != nil {
+		return err
+	}
 
 	return dr.ReaderAuth.Verify(
 		rootCertificates,
 		now,
-		*readerAuthentication,
+		readerAuthenticationBytes,
 	)
 }
 

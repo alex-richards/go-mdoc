@@ -10,6 +10,8 @@ import (
 var (
 	ErrNoDeviceAuthPresent        = errors.New("no device auth present")
 	ErrMultipleDeviceAuthsPresent = errors.New("multiple device auths present")
+
+	ErrMACAuthNotSupported = errors.New("MAC auth not supported")
 )
 
 type DeviceAuth struct {
@@ -20,49 +22,53 @@ type DeviceAuth struct {
 func NewDeviceAuth(
 	rand io.Reader,
 	privateSDeviceKey PrivateSDeviceKey,
-	deviceAuthentication DeviceAuthentication,
+	deviceAuthenticationBytes *TaggedEncodedCBOR,
 ) (*DeviceAuth, error) {
-	signer, err := newCoseSigner(privateSDeviceKey)
+	switch privateSDeviceKey.Mode() {
+	case SDeviceKeyModeSign:
+		return newSignedDeviceAuth(rand, privateSDeviceKey, deviceAuthenticationBytes)
+	case SDeviceKeyModeMAC:
+		return newTaggedDeviceAuth()
+	default:
+		panic("invalid privateSDeviceKey mode")
+	}
+}
+
+func newSignedDeviceAuth(
+	rand io.Reader,
+	signer Signer,
+	deviceAuthenticationBytes *TaggedEncodedCBOR,
+) (*DeviceAuth, error) {
+	deviceAuth := &DeviceAuth{DeviceSignature: &DeviceSignature{}}
+
+	coseSigner, err := newCoseSigner(signer)
 	if err != nil {
 		return nil, err
 	}
 
-	deviceAuthenticationBytes, err := MarshalToNewTaggedEncodedCBOR(deviceAuthentication)
-	if err != nil {
-		return nil, err
-	}
+	deviceAuth.DeviceSignature.Payload = deviceAuthenticationBytes.TaggedValue
+	err = (*cose.Sign1Message)(deviceAuth.DeviceSignature).Sign(rand, []byte{}, coseSigner)
+	deviceAuth.DeviceSignature.Payload = nil
+	return deviceAuth, nil
+}
 
-	deviceSignature := &DeviceSignature{
-		Headers: cose.Headers{
-			Protected: cose.ProtectedHeader{
-				cose.HeaderLabelAlgorithm: signer.Algorithm(),
-			},
-		},
-		Payload: deviceAuthenticationBytes.TaggedValue,
-	}
-
-	err = (*cose.Sign1Message)(deviceSignature).Sign(rand, []byte{}, signer)
-	if err != nil {
-		return nil, err
-	}
-	deviceSignature.Payload = nil
-
-	return &DeviceAuth{DeviceSignature: deviceSignature}, nil
+func newTaggedDeviceAuth() (*DeviceAuth, error) {
+	return nil, ErrMACAuthNotSupported
 }
 
 func (da *DeviceAuth) Verify(
-	deviceKey DeviceKey,
-	deviceAuthentication DeviceAuthentication,
+	deviceKey *DeviceKey,
+	deviceAuthenticationBytes *TaggedEncodedCBOR,
 ) error {
 	switch {
 	case da.DeviceSignature != nil && da.DeviceMAC != nil:
 		return ErrMultipleDeviceAuthsPresent
 
 	case da.DeviceSignature != nil:
-		return verifyDeviceSignature(deviceKey, *da.DeviceSignature, deviceAuthentication)
+		return verifyDeviceSignature(deviceKey, da.DeviceSignature, deviceAuthenticationBytes)
 
 	case da.DeviceMAC != nil:
-		return errors.New("TODO coseMac0") // TODO
+		return ErrMACAuthNotSupported
 
 	default:
 		return ErrNoDeviceAuthPresent
@@ -70,26 +76,19 @@ func (da *DeviceAuth) Verify(
 }
 
 func verifyDeviceSignature(
-	deviceKey DeviceKey,
-	deviceSignature DeviceSignature,
-	deviceAuthentication DeviceAuthentication,
+	deviceKey *DeviceKey,
+	deviceSignature *DeviceSignature,
+	deviceAuthenticationBytes *TaggedEncodedCBOR,
 ) error {
-	deviceAuthenticationBytes, err := MarshalToNewTaggedEncodedCBOR(deviceAuthentication)
+	coseVerifier, err := (*cose.Key)(deviceKey).Verifier()
 	if err != nil {
 		return err
 	}
 
-	verifier, err := (*cose.Key)(&deviceKey).Verifier()
-	if err != nil {
-		return err
-	}
-
-	sign1 := (cose.Sign1Message)(deviceSignature)
-	sign1.Signature = deviceAuthenticationBytes.TaggedValue
-	return sign1.Verify(
-		[]byte{},
-		verifier,
-	)
+	deviceSignature.Payload = deviceAuthenticationBytes.TaggedValue
+	err = (*cose.Sign1Message)(deviceSignature).Verify([]byte{}, coseVerifier)
+	deviceSignature.Payload = nil
+	return err
 }
 
 type DeviceSignature cose.UntaggedSign1Message
@@ -111,15 +110,23 @@ type DeviceAuthentication struct {
 	DeviceNameSpaceBytes TaggedEncodedCBOR
 }
 
-func NewDeviceAuthentication(
-	sessionTranscript SessionTranscript,
+func NewDeviceAuthenticationBytes(
+	sessionTranscript *SessionTranscript,
 	docType DocType,
-	deviceNameSpaceBytes TaggedEncodedCBOR,
+	deviceNameSpaceBytes *TaggedEncodedCBOR,
+) (*TaggedEncodedCBOR, error) {
+	return MarshalToNewTaggedEncodedCBOR(NewDeviceAuthentication(sessionTranscript, docType, deviceNameSpaceBytes))
+}
+
+func NewDeviceAuthentication(
+	sessionTranscript *SessionTranscript,
+	docType DocType,
+	deviceNameSpaceBytes *TaggedEncodedCBOR,
 ) *DeviceAuthentication {
 	return &DeviceAuthentication{
 		DeviceAuthentication: "DeviceAuthentication",
-		SessionTranscript:    sessionTranscript,
+		SessionTranscript:    *sessionTranscript,
 		DocType:              docType,
-		DeviceNameSpaceBytes: deviceNameSpaceBytes,
+		DeviceNameSpaceBytes: *deviceNameSpaceBytes,
 	}
 }

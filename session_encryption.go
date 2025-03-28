@@ -17,8 +17,8 @@ const (
 	skDeviceInfo   = "SKDevice"
 )
 
-var readerIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 0}
-var deviceIdentifier = []byte{0, 0, 0, 0, 0, 0, 0, 1}
+var readerIdentifier = [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
+var deviceIdentifier = [8]byte{0, 0, 0, 0, 0, 0, 0, 1}
 
 func SKReader(
 	privateEDeviceKey PrivateEDeviceKey,
@@ -55,7 +55,7 @@ func sk(
 	info string,
 	length int,
 ) ([]byte, error) {
-	sharedSecret, err := privateEDeviceKey.Agree(*deviceKey)
+	sharedSecret, err := privateEDeviceKey.Agree(deviceKey)
 	if err != nil {
 		return nil, err
 	}
@@ -84,10 +84,10 @@ func sk(
 
 type SessionEncryption struct {
 	encryptionCipher     cipher.AEAD
-	encryptionIdentifier []byte
+	encryptionIdentifier [8]byte
 	encryptionCounter    uint32
 	decryptionCipher     cipher.AEAD
-	decryptionIdentifier []byte
+	decryptionIdentifier [8]byte
 	decryptionCounter    uint32
 }
 
@@ -117,9 +117,9 @@ func NewDeviceSessionEncryption(
 
 func newSessionEncryption(
 	encryptionSK []byte,
-	encryptionIdentifier []byte,
+	encryptionIdentifier [8]byte,
 	decryptionSK []byte,
-	decryptionIdentifier []byte,
+	decryptionIdentifier [8]byte,
 ) (*SessionEncryption, error) {
 	encryptionBlockCipher, err := aes.NewCipher(encryptionSK)
 	if err != nil {
@@ -160,7 +160,7 @@ func (se *SessionEncryption) Decrypt(cipherText []byte) ([]byte, error) {
 func (se *SessionEncryption) encryptNonce() []byte {
 	se.encryptionCounter++
 	nonce := make([]byte, 12)
-	copy(nonce, se.encryptionIdentifier)
+	copy(nonce, se.encryptionIdentifier[:])
 	copy(nonce[8:], countToBytes(se.encryptionCounter))
 	return nonce
 }
@@ -168,7 +168,7 @@ func (se *SessionEncryption) encryptNonce() []byte {
 func (se *SessionEncryption) decryptNonce() []byte {
 	se.decryptionCounter++
 	nonce := make([]byte, 12)
-	copy(nonce, se.decryptionIdentifier)
+	copy(nonce, se.decryptionIdentifier[:])
 	copy(nonce[8:], countToBytes(se.decryptionCounter))
 	return nonce
 }

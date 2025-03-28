@@ -27,32 +27,13 @@ type ReaderAuth cose.UntaggedSign1Message
 func NewReaderAuth(
 	rand io.Reader,
 	readerAuthority ReaderAuthority,
-	readerAuthentication ReaderAuthentication,
+	readerAuthenticationBytes *TaggedEncodedCBOR,
 ) (*ReaderAuth, error) {
-	signer, err := newCoseSigner(readerAuthority)
-	if err != nil {
+	readerAuth := new(ReaderAuth)
+
+	if err := coseSignDetached(rand, readerAuthority, readerAuth, readerAuthenticationBytes.TaggedValue); err != nil {
 		return nil, err
 	}
-
-	readerAuthenticationBytes, err := MarshalToNewTaggedEncodedCBOR(readerAuthentication)
-	if err != nil {
-		return nil, err
-	}
-
-	readerAuth := &ReaderAuth{
-		Payload: readerAuthenticationBytes.TaggedValue,
-	}
-
-	err = (*cose.Sign1Message)(readerAuth).Sign(
-		rand,
-		[]byte{},
-		signer,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	readerAuth.Payload = nil
 
 	return readerAuth, nil
 }
@@ -67,14 +48,14 @@ func (ra *ReaderAuth) UnmarshalCBOR(data []byte) error {
 func (ra *ReaderAuth) Verify(
 	rootCertificates []*x509.Certificate,
 	now time.Time,
-	readerAuthentication ReaderAuthentication,
+	readerAuthenticationBytes *TaggedEncodedCBOR,
 ) error {
-	chain, err := x509Chain(ra.Headers.Unprotected)
+	chain, err := coseX509Chain(ra.Headers.Unprotected)
 	if err != nil {
 		return err
 	}
 
-	readerAuthCertificate, err := verifyChain(
+	readerAuthCertificate, err := x500VerifyChain(
 		rootCertificates,
 		chain,
 		now,
@@ -92,11 +73,6 @@ func (ra *ReaderAuth) Verify(
 	}
 
 	verifier, err := cose.NewVerifier(signatureAlgorithm, readerAuthCertificate.PublicKey)
-	if err != nil {
-		return err
-	}
-
-	readerAuthenticationBytes, err := MarshalToNewTaggedEncodedCBOR(readerAuthentication)
 	if err != nil {
 		return err
 	}
@@ -179,13 +155,20 @@ type ReaderAuthentication struct {
 	ItemsRequestBytes    TaggedEncodedCBOR
 }
 
+func NewReaderAuthenticationBytes(
+	sessionTranscript *SessionTranscript,
+	itemsRequestBytes *TaggedEncodedCBOR,
+) (*TaggedEncodedCBOR, error) {
+	return MarshalToNewTaggedEncodedCBOR(NewReaderAuthentication(sessionTranscript, itemsRequestBytes))
+}
+
 func NewReaderAuthentication(
-	sessionTranscript SessionTranscript,
-	itemsRequestBytes TaggedEncodedCBOR,
+	sessionTranscript *SessionTranscript,
+	itemsRequestBytes *TaggedEncodedCBOR,
 ) *ReaderAuthentication {
 	return &ReaderAuthentication{
 		ReaderAuthentication: "ReaderAuthentication",
-		SessionTranscript:    sessionTranscript,
-		ItemsRequestBytes:    itemsRequestBytes,
+		SessionTranscript:    *sessionTranscript,
+		ItemsRequestBytes:    *itemsRequestBytes,
 	}
 }

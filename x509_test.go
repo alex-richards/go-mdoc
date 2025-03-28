@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func TestVerifyChain(t *testing.T) {
+func Test_x500VerifyChain(t *testing.T) {
 	rand := NewDeterministicRand()
 
 	root1 := createCA(
@@ -140,7 +140,7 @@ func TestVerifyChain(t *testing.T) {
 			intermediateChecks := max(0, len(chain)-1)
 			leafChecks := 1
 
-			leafCertificate, err := verifyChain(
+			leafCertificate, err := x500VerifyChain(
 				tt.roots,
 				chain,
 				tt.now,

@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/x509"
+	"math/big"
 	"testing"
 	"time"
 )
@@ -20,6 +21,7 @@ func Test_NewIACACertificate(t *testing.T) {
 		rand,
 		private,
 		private.Public(),
+		*big.NewInt(1234),
 		"Test IACA",
 		"NZ",
 		nil,
@@ -50,6 +52,7 @@ func Test_NewIACACertificate(t *testing.T) {
 		private,
 		*cert,
 		privateDS.Public(),
+		*big.NewInt(5678),
 		"Test Document Signer",
 		nil,
 		time.Now(),

@@ -43,7 +43,6 @@ func Test_MarshalToTaggedEncodedCBOR(t *testing.T) {
 					cborMajorTypeStr | 6, 's', 't', 'r', 'i', 'n', 'g',
 				},
 				UntaggedValue: []byte{
-					cborMajorTypeBstr | 7,
 					cborMajorTypeStr | 6, 's', 't', 'r', 'i', 'n', 'g',
 				},
 			},
@@ -58,7 +57,6 @@ func Test_MarshalToTaggedEncodedCBOR(t *testing.T) {
 					cborNull,
 				},
 				UntaggedValue: []byte{
-					cborMajorTypeBstr | 1,
 					cborNull,
 				},
 			},
@@ -95,16 +93,11 @@ func Test_NewTaggedEncodedCBOR(t *testing.T) {
 				UntaggedValue: []byte{1, 2, 3, 4},
 			},
 		},
-		{
-			name:          "nil",
-			untaggedValue: nil,
-			want: &TaggedEncodedCBOR{
-				TaggedValue: []byte{
-					cborNull,
-				},
-				UntaggedValue: nil,
-			},
-		},
+		//{
+		//	name:          "nil",
+		//	untaggedValue: nil,
+		//	wantErr: // TODO
+		//},
 		{
 			name:          "empty",
 			untaggedValue: []byte{},

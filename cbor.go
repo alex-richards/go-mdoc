@@ -67,6 +67,10 @@ func MarshalToNewTaggedEncodedCBOR(value any) (*TaggedEncodedCBOR, error) {
 }
 
 func NewTaggedEncodedCBOR(untaggedValue []byte) (*TaggedEncodedCBOR, error) {
+	if untaggedValue == nil {
+		return nil, errors.New("tagged value is nil") // TODO
+	}
+
 	taggedValue, err := encodeModeTaggedEncodedCBOR.Marshal((bstr)(untaggedValue))
 	if err != nil {
 		return nil, err
@@ -76,12 +80,12 @@ func NewTaggedEncodedCBOR(untaggedValue []byte) (*TaggedEncodedCBOR, error) {
 	lenUntagged := len(untaggedValue)
 	lenHeader := lenTagged - lenUntagged
 	if lenHeader < 2 {
-		panic("TODO")
+		panic("unexpected TaggedEncodedCBOR length")
 	}
 
 	return &TaggedEncodedCBOR{
 		TaggedValue:   taggedValue,
-		UntaggedValue: taggedValue[lenHeader-1:],
+		UntaggedValue: taggedValue[lenHeader:],
 	}, nil
 }
 
