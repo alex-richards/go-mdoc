@@ -5,9 +5,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"encoding/asn1"
+	"errors"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
 	"io"
+	"math/big"
 )
 
 type SDeviceKeyMode int
@@ -20,7 +23,7 @@ const (
 type PrivateEDeviceKey interface {
 	DeviceKey() (*DeviceKey, error)
 	Curve() Curve
-	Agree(DeviceKey) ([]byte, error)
+	Agree(*DeviceKey) ([]byte, error)
 }
 
 type PrivateSDeviceKey interface {
@@ -32,13 +35,17 @@ type PrivateSDeviceKey interface {
 func NewSDeviceKey(rand io.Reader, curve Curve, mode SDeviceKeyMode) (PrivateSDeviceKey, error) {
 	if mode == SDeviceKeyModeSign {
 		var c elliptic.Curve
+		var digestAlgorithm DigestAlgorithm
 		switch curve {
 		case CurveP256:
 			c = elliptic.P256()
+			digestAlgorithm = DigestAlgorithmSHA256
 		case CurveP384:
 			c = elliptic.P384()
+			digestAlgorithm = DigestAlgorithmSHA384
 		case CurveP521:
 			c = elliptic.P521()
+			digestAlgorithm = DigestAlgorithmSHA512
 
 		case CurveEd25519:
 			_, key, err := ed25519.GenerateKey(rand)
@@ -58,8 +65,9 @@ func NewSDeviceKey(rand io.Reader, curve Curve, mode SDeviceKeyMode) (PrivateSDe
 			return nil, err
 		}
 		return &privateDeviceKeyECDSA{
-			key:   *key,
-			curve: curve,
+			key:             *key,
+			curve:           curve,
+			digestAlgorithm: digestAlgorithm,
 		}, nil
 	}
 
@@ -84,7 +92,7 @@ func NewSDeviceKey(rand io.Reader, curve Curve, mode SDeviceKeyMode) (PrivateSDe
 			return nil, err
 		}
 		return &privateDeviceKeyECDH{
-			key:   *key,
+			key:   key,
 			curve: curve,
 		}, nil
 	}
@@ -107,54 +115,95 @@ func (dk *DeviceKey) UnmarshalCBOR(data []byte) error {
 }
 
 func (dk *DeviceKey) publicKeyECDH() (*ecdh.PublicKey, error) {
-	publicKey, err := (*cose.Key)(dk).PublicKey()
-	if err != nil {
-		return nil, err
-	}
+	switch dk.Type {
+	case cose.KeyTypeOKP:
+		switch curve, _ := dk.Params[cose.KeyLabelOKPCurve]; curve {
+		case cose.CurveX25519:
+			x, ok := dk.Params[cose.KeyLabelOKPX].([]byte)
+			if !ok {
+				return nil, ErrUnsupportedCurve
+			}
+			return ecdh.X25519().NewPublicKey(x)
 
-	ecdsaKey, ok := publicKey.(ecdsa.PublicKey)
-	if !ok {
-		return nil, ErrUnsupportedAlgorithm
-	}
+		default:
+			return nil, ErrUnsupportedCurve
+		}
 
-	return ecdsaKey.ECDH()
+	case cose.KeyTypeEC2:
+		publicKey, err := (*cose.Key)(dk).PublicKey()
+		if err != nil {
+			return nil, err
+		}
+
+		ecdsaKey, ok := publicKey.(*ecdsa.PublicKey)
+		if !ok {
+			return nil, ErrUnsupportedAlgorithm
+		}
+
+		return ecdsaKey.ECDH()
+
+	default:
+		return nil, ErrUnsupportedCurve
+	}
 }
 
 type privateDeviceKeyECDH struct {
-	key   ecdh.PrivateKey
+	key   *ecdh.PrivateKey
 	curve Curve
 }
 
 func (pdk *privateDeviceKeyECDH) DeviceKey() (*DeviceKey, error) {
-	key, err := cose.NewKeyFromPublic(pdk.key.Public())
-	if err != nil {
-		return nil, err
+	publicKey := pdk.key.PublicKey()
+
+	var curve cose.Curve
+	switch publicKey.Curve() {
+	case ecdh.P256():
+		curve = cose.CurveP256
+	case ecdh.P384():
+		curve = cose.CurveP384
+	case ecdh.P521():
+		curve = cose.CurveP521
+
+	case ecdh.X25519():
+		curve = cose.CurveX25519
+		return &DeviceKey{
+			Type: cose.KeyTypeOKP,
+			Params: map[any]any{
+				cose.KeyLabelOKPCurve: cose.CurveX25519,
+				cose.KeyLabelOKPX:     publicKey.Bytes(),
+			},
+		}, nil
+
+	default:
+		return nil, ErrUnsupportedCurve
 	}
 
-	return (*DeviceKey)(key), nil
+	bytes := publicKey.Bytes()
+	startY := len(bytes)/2 + 1
+	x := bytes[1:startY]
+	y := bytes[startY:]
+
+	return &DeviceKey{
+		Type: cose.KeyTypeEC2,
+		Params: map[any]any{
+			cose.KeyLabelEC2Curve: curve,
+			cose.KeyLabelEC2X:     x,
+			cose.KeyLabelEC2Y:     y,
+		},
+	}, nil
 }
 
 func (pdk *privateDeviceKeyECDH) Curve() Curve {
 	return pdk.curve
 }
 
-func (pdk *privateDeviceKeyECDH) Agree(deviceKey DeviceKey) ([]byte, error) {
-	publicKey, err := (*cose.Key)(&deviceKey).PublicKey()
+func (pdk *privateDeviceKeyECDH) Agree(deviceKey *DeviceKey) ([]byte, error) {
+	publicKey, err := deviceKey.publicKeyECDH()
 	if err != nil {
 		return nil, err
 	}
 
-	ecdsaKey, ok := publicKey.(ecdsa.PublicKey)
-	if !ok {
-		return nil, ErrUnsupportedAlgorithm
-	}
-
-	ecdhKey, err := ecdsaKey.ECDH()
-	if err != nil {
-		return nil, err
-	}
-
-	return pdk.key.ECDH(ecdhKey)
+	return pdk.key.ECDH(publicKey)
 }
 
 func (pdk *privateDeviceKeyECDH) Mode() SDeviceKeyMode {
@@ -166,12 +215,13 @@ func (pdk *privateDeviceKeyECDH) Sign(_ io.Reader, _ []byte) ([]byte, error) {
 }
 
 type privateDeviceKeyECDSA struct {
-	key   ecdsa.PrivateKey
-	curve Curve
+	key             ecdsa.PrivateKey
+	curve           Curve
+	digestAlgorithm DigestAlgorithm
 }
 
 func (pdk *privateDeviceKeyECDSA) DeviceKey() (*DeviceKey, error) {
-	key, err := cose.NewKeyFromPrivate(pdk.key.Public())
+	key, err := cose.NewKeyFromPublic(pdk.key.Public())
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +233,7 @@ func (pdk *privateDeviceKeyECDSA) Curve() Curve {
 	return pdk.curve
 }
 
-func (pdk *privateDeviceKeyECDSA) Agree(_ DeviceKey) ([]byte, error) {
+func (pdk *privateDeviceKeyECDSA) Agree(_ *DeviceKey) ([]byte, error) {
 	return nil, ErrUnsupportedAlgorithm
 }
 
@@ -192,7 +242,65 @@ func (pdk *privateDeviceKeyECDSA) Mode() SDeviceKeyMode {
 }
 
 func (pdk *privateDeviceKeyECDSA) Sign(rand io.Reader, data []byte) ([]byte, error) {
-	panic("TODO") // TODO
+	hash, err := pdk.digestAlgorithm.Hash()
+	if err != nil {
+		return nil, err
+	}
+
+	hash.Reset()
+	hash.Write(data)
+	digest := hash.Sum(nil)
+
+	signatureASN1, err := ecdsa.SignASN1(rand, &pdk.key, digest)
+	if err != nil {
+		return nil, err
+	}
+
+	return asn1SignatureToConcat(pdk.curve, signatureASN1)
+}
+
+func asn1SignatureToConcat(curve Curve, signatureASN1 []byte) ([]byte, error) {
+	type EcdsaSignature struct {
+		R *big.Int
+		S *big.Int
+	}
+
+	signatureECDSA := new(EcdsaSignature)
+	rest, err := asn1.Unmarshal(signatureASN1, signatureECDSA)
+	if err != nil {
+		return nil, err
+	}
+	if len(rest) > 0 {
+		return nil, errors.New("TODO: trailing data")
+	}
+
+	rBytes := signatureECDSA.R.Bytes()
+	sBytes := signatureECDSA.S.Bytes()
+
+	var size int
+	switch curve {
+	case CurveP256, CurveBrainpoolP256r1:
+		size = 256
+	case CurveP384, CurveBrainpoolP320r1:
+		size = 384
+	case CurveBrainpoolP384r1:
+		size = 384
+	case CurveP521, CurveBrainpoolP512r1:
+		size = 521
+	default:
+		return nil, ErrUnsupportedCurve
+	}
+	byteSize := (size + 7) / 8
+
+	concatSignature := make([]byte, byteSize*2)
+
+	startR := byteSize - len(rBytes)
+	startS := (byteSize * 2) - len(sBytes)
+
+	copy(concatSignature[startR:], rBytes)
+	copy(concatSignature[startS:], sBytes)
+
+	return concatSignature, nil
 }
 
 type privateDeviceKeyEdDSA struct {
@@ -212,7 +320,7 @@ func (pdk *privateDeviceKeyEdDSA) Curve() Curve {
 	return CurveEd25519
 }
 
-func (pdk *privateDeviceKeyEdDSA) Agree(_ DeviceKey) ([]byte, error) {
+func (pdk *privateDeviceKeyEdDSA) Agree(_ *DeviceKey) ([]byte, error) {
 	return nil, ErrUnsupportedAlgorithm
 }
 

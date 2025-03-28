@@ -31,12 +31,12 @@ const (
 )
 
 func CreateDeviceResponse(
-	deviceRequest DeviceRequest,
+	deviceRequest *DeviceRequest,
 	candidateIssuerSigneds map[DocType]IssuerSigned,
 	candidateDeviceSigneds map[DocType]map[NameSpace]map[DataElementIdentifier]any,
 	rand io.Reader,
-	privateDeviceKey PrivateSDeviceKey,
-	sessionTranscript SessionTranscript,
+	privateSDeviceKey PrivateSDeviceKey,
+	sessionTranscript *SessionTranscript,
 ) (*DeviceResponse, error) {
 	documents := make([]Document, 0)
 	documentErrors := make([]DocumentError, 0)
@@ -107,7 +107,7 @@ func CreateDeviceResponse(
 			}
 		}
 
-		documentDeviceSigned, err := NewDeviceSigned(itemsRequest.DocType, documentDeviceNameSpaces, rand, privateDeviceKey, sessionTranscript)
+		documentDeviceSigned, err := NewDeviceSigned(itemsRequest.DocType, documentDeviceNameSpaces, rand, privateSDeviceKey, sessionTranscript)
 		if err != nil {
 			return nil, err
 		}
@@ -126,12 +126,11 @@ func CreateDeviceResponse(
 		)
 	}
 
-	return &DeviceResponse{
-		Version:        "1.0",
-		Documents:      documents,
-		DocumentErrors: documentErrors,
-		Status:         StatusCodeOK,
-	}, nil
+	return NewDeviceResponse(
+		documents,
+		documentErrors,
+		StatusCodeOK,
+	), nil
 }
 
 func NewDeviceResponse(
@@ -156,17 +155,22 @@ type Document struct {
 	Errors       *Errors      `cbor:"errors,omitempty"`
 }
 
-func (d *Document) Verify(rootCertificates []*x509.Certificate, now time.Time, sessionTranscript SessionTranscript) error {
+func (d *Document) Verify(
+	rootCertificates []*x509.Certificate,
+	now time.Time,
+	sessionTranscript *SessionTranscript,
+) error {
 	mobileSecurityObject, err := d.IssuerSigned.Verify(rootCertificates, now)
 	if err != nil {
 		return err
 	}
 
-	deviceKey := mobileSecurityObject.DeviceKeyInfo.DeviceKey
+	deviceAuthenticationBytes, err := NewDeviceAuthenticationBytes(sessionTranscript, d.DocType, &d.DeviceSigned.NameSpacesBytes)
+	if err != nil {
+		return err
+	}
 
-	deviceAuthentication := NewDeviceAuthentication(sessionTranscript, d.DocType, d.DeviceSigned.NameSpacesBytes)
-
-	return d.DeviceSigned.Verify(deviceKey, *deviceAuthentication, *mobileSecurityObject)
+	return d.DeviceSigned.Verify(&mobileSecurityObject.DeviceKeyInfo.DeviceKey, deviceAuthenticationBytes, mobileSecurityObject)
 }
 
 type IssuerSigned struct {
@@ -252,7 +256,7 @@ func (ins IssuerNameSpaces) IssuerSignedItems() (IssuerSignedItems, error) {
 			if err != nil {
 				return nil, err
 			}
-			issuerSignedItems[i] = issuerSignedItem
+			issuerSignedItems[i] = *issuerSignedItem
 		}
 		issuerSignedItemss[nameSpace] = issuerSignedItems
 	}
@@ -262,8 +266,16 @@ func (ins IssuerNameSpaces) IssuerSignedItems() (IssuerSignedItems, error) {
 type IssuerSignedItemBytess []IssuerSignedItemBytes
 type IssuerSignedItemBytes TaggedEncodedCBOR
 
-func (isib IssuerSignedItemBytes) IssuerSignedItem() (IssuerSignedItem, error) {
-	var issuerSignedItem IssuerSignedItem
+func (isib *IssuerSignedItemBytes) MarshalCBOR() ([]byte, error) {
+	return (*TaggedEncodedCBOR)(isib).MarshalCBOR()
+}
+
+func (isib *IssuerSignedItemBytes) UnmarshalCBOR(data []byte) error {
+	return (*TaggedEncodedCBOR)(isib).UnmarshalCBOR(data)
+}
+
+func (isib *IssuerSignedItemBytes) IssuerSignedItem() (*IssuerSignedItem, error) {
+	issuerSignedItem := new(IssuerSignedItem)
 	err := cbor.Unmarshal(isib.UntaggedValue, &issuerSignedItem)
 	return issuerSignedItem, err
 }
@@ -299,16 +311,19 @@ func NewDeviceSigned(
 	nameSpaces DeviceNameSpaces,
 	rand io.Reader,
 	privateSDeviceKey PrivateSDeviceKey,
-	sessionTranscript SessionTranscript,
+	sessionTranscript *SessionTranscript,
 ) (*DeviceSigned, error) {
 	nameSpacesBytes, err := MarshalToNewTaggedEncodedCBOR(nameSpaces)
 	if err != nil {
 		return nil, err
 	}
 
-	deviceAuthentication := NewDeviceAuthentication(sessionTranscript, docType, *nameSpacesBytes)
+	deviceAuthenticationBytes, err := NewDeviceAuthenticationBytes(sessionTranscript, docType, nameSpacesBytes)
+	if err != nil {
+		return nil, err
+	}
 
-	deviceAuth, err := NewDeviceAuth(rand, privateSDeviceKey, *deviceAuthentication)
+	deviceAuth, err := NewDeviceAuth(rand, privateSDeviceKey, deviceAuthenticationBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -320,11 +335,11 @@ func NewDeviceSigned(
 }
 
 func (ds *DeviceSigned) Verify(
-	deviceKey DeviceKey,
-	deviceAuthentication DeviceAuthentication,
-	mobileSecurityObject MobileSecurityObject,
+	deviceKey *DeviceKey,
+	deviceAuthenticationBytes *TaggedEncodedCBOR,
+	mobileSecurityObject *MobileSecurityObject,
 ) error {
-	err := ds.DeviceAuth.Verify(deviceKey, deviceAuthentication)
+	err := ds.DeviceAuth.Verify(deviceKey, deviceAuthenticationBytes)
 	if err != nil {
 		return err
 	}
@@ -337,9 +352,9 @@ func (ds *DeviceSigned) Verify(
 	return deviceNameSpaces.Verify(mobileSecurityObject)
 }
 
-func (ds *DeviceSigned) NameSpaces() (*DeviceNameSpaces, error) {
-	deviceNameSpaces := new(DeviceNameSpaces)
-	if err := cbor.Unmarshal(ds.NameSpacesBytes.UntaggedValue, deviceNameSpaces); err != nil {
+func (ds *DeviceSigned) NameSpaces() (DeviceNameSpaces, error) {
+	var deviceNameSpaces DeviceNameSpaces
+	if err := cbor.Unmarshal(ds.NameSpacesBytes.UntaggedValue, &deviceNameSpaces); err != nil {
 		return nil, err
 	}
 
@@ -349,7 +364,7 @@ func (ds *DeviceSigned) NameSpaces() (*DeviceNameSpaces, error) {
 type DeviceNameSpaces map[NameSpace]DeviceSignedItems
 
 func (dns DeviceNameSpaces) Verify(
-	mobileSecurityObject MobileSecurityObject,
+	mobileSecurityObject *MobileSecurityObject,
 ) error {
 	deviceNameSpaceCount := len(dns)
 	if deviceNameSpaceCount == 0 {

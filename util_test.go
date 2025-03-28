@@ -26,7 +26,7 @@ func (r deterministicRand) Read(p []byte) (n int, err error) {
 	return wrote, nil
 }
 
-func decodeHex(t *testing.T, encoded string) []byte {
+func decodeHex(t testing.TB, encoded string) []byte {
 	t.Helper()
 
 	decoded, err := hex.DecodeString(encoded)
@@ -37,7 +37,7 @@ func decodeHex(t *testing.T, encoded string) []byte {
 	return decoded
 }
 
-func newTestUUID(t *testing.T, rand io.Reader) *UUID {
+func newUUID(t testing.TB, rand io.Reader) *UUID {
 	t.Helper()
 	uuid, err := NewUUID(rand)
 	if err != nil {
@@ -45,16 +45,8 @@ func newTestUUID(t *testing.T, rand io.Reader) *UUID {
 	}
 	return uuid
 }
-func newBenchmarkUUID(b *testing.B, rand io.Reader) *UUID {
-	b.Helper()
-	uuid, err := NewUUID(rand)
-	if err != nil {
-		b.Fatal(err)
-	}
-	return uuid
-}
 
-func expectCBOR(t *testing.T, expected, got []byte) {
+func expectCBOR(t testing.TB, expected, got []byte) {
 	t.Helper()
 
 	diagExpected := diagnoseCBOR(t, expected)
@@ -65,7 +57,7 @@ func expectCBOR(t *testing.T, expected, got []byte) {
 	}
 }
 
-func diagnoseCBOR(t *testing.T, encoded []byte) string {
+func diagnoseCBOR(t testing.TB, encoded []byte) string {
 	t.Helper()
 
 	diag, err := cbor.Diagnose(encoded)

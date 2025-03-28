@@ -39,32 +39,18 @@ type IssuerAuth cose.UntaggedSign1Message
 func NewIssuerAuth(
 	rand io.Reader,
 	issuerAuthority IssuerAuthority,
-	mobileSecurityObject MobileSecurityObject,
+	mobileSecurityObject *MobileSecurityObject,
 ) (*IssuerAuth, error) {
 	mobileSecurityObjectBytes, err := MarshalToNewTaggedEncodedCBOR(mobileSecurityObject)
 	if err != nil {
 		return nil, err
 	}
 
-	signer, err := newCoseSigner(issuerAuthority)
-	if err != nil {
-		return nil, err
-	}
-
 	issuerAuth := &IssuerAuth{
-		Headers: cose.Headers{
-			Protected: cose.ProtectedHeader{
-				cose.HeaderLabelAlgorithm: signer.Algorithm(),
-			},
-		},
 		Payload: mobileSecurityObjectBytes.TaggedValue,
 	}
 
-	err = (*cose.Sign1Message)(issuerAuth).Sign(
-		rand,
-		[]byte{},
-		signer,
-	)
+	err = coseSign(rand, issuerAuthority, issuerAuth)
 	if err != nil {
 		return nil, err
 	}
@@ -80,12 +66,12 @@ func (ia *IssuerAuth) UnmarshalCBOR(data []byte) error {
 }
 
 func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time) error {
-	chain, err := x509Chain(ia.Headers.Unprotected)
+	chain, err := coseX509Chain(ia.Headers.Unprotected)
 	if err != nil {
 		return err
 	}
 
-	issuerAuthCertificate, err := verifyChain(
+	issuerAuthCertificate, err := x500VerifyChain(
 		rootCertificates,
 		chain,
 		now,
@@ -278,8 +264,8 @@ func NewMobileSecurityObject(
 	docType DocType,
 	digestAlgorithm DigestAlgorithm,
 	nameSpaces IssuerNameSpaces,
-	deviceKey DeviceKey,
-	validityInfo ValidityInfo,
+	deviceKey *DeviceKey,
+	validityInfo *ValidityInfo,
 	keyAuthorizations *KeyAuthorizations,
 	keyInfo *KeyInfo,
 ) (*MobileSecurityObject, error) {
@@ -306,12 +292,12 @@ func NewMobileSecurityObject(
 		DigestAlgorithm: digestAlgorithm,
 		ValueDigests:    nameSpaceDigests,
 		DeviceKeyInfo: DeviceKeyInfo{
-			DeviceKey:         deviceKey,
+			DeviceKey:         *deviceKey,
 			KeyAuthorizations: keyAuthorizations,
 			KeyInfo:           keyInfo,
 		},
 		DocType:      docType,
-		ValidityInfo: validityInfo,
+		ValidityInfo: *validityInfo,
 	}, nil
 }
 

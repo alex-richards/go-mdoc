@@ -10,12 +10,7 @@ type SessionEstablishment struct {
 }
 
 func NewSessionEstablishment(eReaderKey *DeviceKey, data []byte) (*SessionEstablishment, error) {
-	eReaderKeyBytesUntagged, err := cbor.Marshal(eReaderKey)
-	if err != nil {
-		return nil, err
-	}
-
-	eReaderKeyBytes, err := NewTaggedEncodedCBOR(eReaderKeyBytesUntagged)
+	eReaderKeyBytes, err := MarshalToNewTaggedEncodedCBOR(eReaderKey)
 	if err != nil {
 		return nil, err
 	}

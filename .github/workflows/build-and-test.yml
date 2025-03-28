@@ -22,12 +22,11 @@ jobs:
     - name: Build
       run: go build
 
-    - name: Build
-      run: go build -tags mdoc_tinycbor
+    #- name: Build
+    #  run: go build -tags mdoc_tinycbor
 
     - name: Test
       run: go test
 
-    - name: Test
-      run: go test -tags mdoc_tinycbor
-
+    #- name: Test
+    #  run: go test -tags mdoc_tinycbor

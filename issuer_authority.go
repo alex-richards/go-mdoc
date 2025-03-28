@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"io"
+	"math/big"
 	"time"
 )
 
@@ -20,6 +21,7 @@ func NewIACACertificate(
 	rand io.Reader,
 	signer crypto.Signer,
 	publicKey crypto.PublicKey,
+	serialNumber big.Int,
 	commonName string,
 	country string, state *string,
 	notBefore, notAfter time.Time,
@@ -35,6 +37,7 @@ func NewIACACertificate(
 	}
 
 	template := x509.Certificate{
+		SerialNumber: &serialNumber,
 		Subject: pkix.Name{
 			CommonName: commonName,
 			Country:    []string{country},
@@ -60,6 +63,7 @@ func NewDocumentSignerCertificate(
 	signer crypto.Signer,
 	iacaCertificate x509.Certificate,
 	publicKey crypto.PublicKey,
+	serialNumber big.Int,
 	commonName string,
 	state *string,
 	notBefore, notAfter time.Time,
@@ -75,6 +79,7 @@ func NewDocumentSignerCertificate(
 	}
 
 	template := x509.Certificate{
+		SerialNumber: &serialNumber,
 		Subject: pkix.Name{
 			CommonName: commonName,
 			Country:    iacaCertificate.Subject.Country,

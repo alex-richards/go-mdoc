@@ -13,6 +13,7 @@ const (
 	DigestAlgorithmSHA256 DigestAlgorithm = "SHA-256"
 	DigestAlgorithmSHA384 DigestAlgorithm = "SHA-384"
 	DigestAlgorithmSHA512 DigestAlgorithm = "SHA-512"
+	DigestAlgorithmNone   DigestAlgorithm = "none"
 )
 
 func (da *DigestAlgorithm) Hash() (hash.Hash, error) {

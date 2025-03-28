@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestSK_Equality(t *testing.T) {
+func Test_SK_Equality(t *testing.T) {
 	rand := NewDeterministicRand()
 
 	eReaderKeyPrivate, err := NewEDeviceKey(rand, CurveP256)
@@ -61,7 +61,7 @@ func TestSK_Equality(t *testing.T) {
 	}
 }
 
-func TestSessionEncryption_RoundTrip(t *testing.T) {
+func Test_SessionEncryption_RoundTrip(t *testing.T) {
 	keySize := 256 / 8
 
 	skReader := make([]byte, keySize)

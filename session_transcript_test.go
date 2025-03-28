@@ -7,14 +7,6 @@ import (
 	"testing"
 )
 
-func TestSessionTranscript_MarshalCBOR(t *testing.T) {
-	t.Fatal("TODO") // TODO
-}
-
-func TestSessionTranscript_UnmarshalCBOR(t *testing.T) {
-	t.Fatal("TODO") // TODO
-}
-
 func TestSessionTranscript_CBOR_RoundTrip(t *testing.T) {
 	deviceEngagementBytes, err := NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
 	if err != nil {

@@ -9,7 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestDeviceRetrievalMethod_UnmarshalCBOR(t *testing.T) {
+func Test_DeviceRetrievalMethod_UnmarshalCBOR(t *testing.T) {
 	rand := deterministicRand{1, 2, 3, 4}
 	tests := []struct {
 		name    string
@@ -49,7 +49,7 @@ func TestDeviceRetrievalMethod_UnmarshalCBOR(t *testing.T) {
 				RetrievalOptions: BLEOptions{
 					SupportsPeripheralServer:      true,
 					SupportsCentralClient:         false,
-					PeripheralServerUUID:          newTestUUID(t, rand),
+					PeripheralServerUUID:          newUUID(t, rand),
 					CentralClientUUID:             nil,
 					PeripheralServerDeviceAddress: nil,
 				},
@@ -60,7 +60,7 @@ func TestDeviceRetrievalMethod_UnmarshalCBOR(t *testing.T) {
 				RetrievalOptions: BLEOptions{
 					SupportsPeripheralServer:      true,
 					SupportsCentralClient:         false,
-					PeripheralServerUUID:          newTestUUID(t, rand),
+					PeripheralServerUUID:          newUUID(t, rand),
 					CentralClientUUID:             nil,
 					PeripheralServerDeviceAddress: nil,
 				},
@@ -106,7 +106,7 @@ func TestDeviceRetrievalMethod_UnmarshalCBOR(t *testing.T) {
 				Version:          1,
 				RetrievalOptions: WifiOptions{},
 			},
-            wantErr: "mdoc: unrecognized retrieval method",
+			wantErr: "mdoc: unrecognized retrieval method",
 		},
 	}
 
@@ -139,4 +139,3 @@ func TestDeviceRetrievalMethod_UnmarshalCBOR(t *testing.T) {
 		})
 	}
 }
-

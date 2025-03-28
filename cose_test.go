@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func Test_x509Chain(t *testing.T) {
+func Test_coseX509Chain(t *testing.T) {
 	rand := NewDeterministicRand()
 	cert := createCA(t, rand, x509.Certificate{
 		Subject:   pkix.Name{CommonName: "cert"},
@@ -58,7 +58,7 @@ func Test_x509Chain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := x509Chain(tt.unprotectedHeaders)
+			got, err := coseX509Chain(tt.unprotectedHeaders)
 			if err != nil && !errors.Is(err, tt.wantErr) {
 				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
 			}

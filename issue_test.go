@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"encoding/hex"
-	"fmt"
 	"github.com/veraison/go-cose"
 	"testing"
 	"time"
@@ -139,8 +137,6 @@ func Test_IssueMDoc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	println(hex.EncodeToString(issuerSignedEncoded))
-
 	var decoded IssuerSigned
 	err = cbor.Unmarshal(issuerSignedEncoded, &decoded)
 	if err != nil {
@@ -167,7 +163,6 @@ func Test_IssueMDoc(t *testing.T) {
 	}
 
 	for nameSpace, issuerSignedItemBytess := range decoded.NameSpaces {
-		println(nameSpace)
 		for _, issuerSignedItemBytes := range issuerSignedItemBytess {
 			issuerSignedItem, err := issuerSignedItemBytes.IssuerSignedItem()
 			if err != nil {
@@ -182,8 +177,6 @@ func Test_IssueMDoc(t *testing.T) {
 			if !bytes.Equal(expectedDigest, calculatedDigest) {
 				t.Fatal("Digest does not match")
 			}
-
-			fmt.Printf("\t%s = %v\n", issuerSignedItem.ElementIdentifier, issuerSignedItem.ElementValue)
 		}
 	}
 }
