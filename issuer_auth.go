@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	ErrInvalidIACARootCertificate        = errors.New("invalid IACA root certificate")
-	ErrUnexpectedIntermediateCertificate = errors.New("unexpected intermediate certificate")
-	ErrInvalidDocumentSignerCertificate  = errors.New("invalid document signer certificate")
+	ErrInvalidIACARootCertificate        = errors.New("mdoc: invalid IACA root certificate")
+	ErrUnexpectedIntermediateCertificate = errors.New("mdoc: unexpected intermediate certificate")
+	ErrInvalidDocumentSignerCertificate  = errors.New("mdoc: invalid document signer certificate")
 )
 
 const (
@@ -47,10 +47,15 @@ func NewIssuerAuth(
 	}
 
 	issuerAuth := &IssuerAuth{
+		Headers: cose.Headers{
+			Unprotected: cose.UnprotectedHeader{
+				cose.HeaderLabelX5Chain: issuerAuthority.DocumentSignerCertificate().Raw,
+			},
+		},
 		Payload: mobileSecurityObjectBytes.TaggedValue,
 	}
 
-	err = coseSign(rand, issuerAuthority, issuerAuth)
+	err = coseSign(rand, issuerAuthority, (*cose.Sign1Message)(issuerAuth))
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +120,7 @@ func validateIACARootCertificate(iacaCertificate *x509.Certificate) error {
 			return ErrInvalidIACARootCertificate
 		}
 
-		// TODO
+		// TODO check for valid country codes
 		//if !strings.EqualFold(countries.ByName(country[0]).Alpha2(), country[0]) {
 		//	return ErrInvalidIACARootCertificate
 		//}
@@ -189,7 +194,7 @@ func validateDocumentSignerCertificate(documentSignerCertificate *x509.Certifica
 	switch documentSignerCertificate.SignatureAlgorithm {
 	case x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512:
 		// allow
-		//TODO edwards
+		// TODO edwards
 	default:
 		return ErrInvalidDocumentSignerCertificate
 	}

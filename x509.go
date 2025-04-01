@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrInvalidCertificate = errors.New("invalid certificate")
+	ErrInvalidCertificate = errors.New("mdoc: x500: invalid certificate")
 )
 
 func x500VerifyChain(

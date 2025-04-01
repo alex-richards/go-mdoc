@@ -20,7 +20,8 @@ const (
 )
 
 var (
-	ErrEmptyTaggedValue = errors.New("empty tagged value")
+	ErrEmptyTaggedValue   = errors.New("mdoc: cbor: empty tagged value")
+	ErrEmptyUntaggedValue = errors.New("mdoc: cbor: empty untagged value")
 )
 
 var (
@@ -68,7 +69,7 @@ func MarshalToNewTaggedEncodedCBOR(value any) (*TaggedEncodedCBOR, error) {
 
 func NewTaggedEncodedCBOR(untaggedValue []byte) (*TaggedEncodedCBOR, error) {
 	if untaggedValue == nil {
-		return nil, errors.New("tagged value is nil") // TODO
+		return nil, ErrEmptyUntaggedValue
 	}
 
 	taggedValue, err := encodeModeTaggedEncodedCBOR.Marshal((bstr)(untaggedValue))

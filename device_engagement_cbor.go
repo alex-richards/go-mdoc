@@ -11,6 +11,15 @@ type intermediateDeviceRetrievalMethod struct {
 	RetrievalOptions cbor.RawMessage
 }
 
+func (de *DeviceEngagement) EDeviceKey() (*DeviceKey, error) {
+	eDeviceKey := new(DeviceKey)
+	if err := cbor.Unmarshal(de.Security.EDeviceKeyBytes.UntaggedValue, eDeviceKey); err != nil {
+		return nil, err
+	}
+
+	return eDeviceKey, nil
+}
+
 func (drm *DeviceRetrievalMethod) MarshalCBOR() ([]byte, error) {
 	var err error
 

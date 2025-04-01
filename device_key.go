@@ -5,12 +5,14 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
-	"encoding/asn1"
 	"errors"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
 	"io"
-	"math/big"
+)
+
+var (
+	ErrUnsupportedSignatureFormat = errors.New("mdoc: unsupported signature format")
 )
 
 type SDeviceKeyMode int
@@ -65,9 +67,11 @@ func NewSDeviceKey(rand io.Reader, curve Curve, mode SDeviceKeyMode) (PrivateSDe
 			return nil, err
 		}
 		return &privateDeviceKeyECDSA{
-			key:             *key,
-			curve:           curve,
-			digestAlgorithm: digestAlgorithm,
+			signerECDSA{
+				key:             key,
+				curve:           curve,
+				digestAlgorithm: digestAlgorithm,
+			},
 		}, nil
 	}
 
@@ -215,9 +219,7 @@ func (pdk *privateDeviceKeyECDH) Sign(_ io.Reader, _ []byte) ([]byte, error) {
 }
 
 type privateDeviceKeyECDSA struct {
-	key             ecdsa.PrivateKey
-	curve           Curve
-	digestAlgorithm DigestAlgorithm
+	signerECDSA
 }
 
 func (pdk *privateDeviceKeyECDSA) DeviceKey() (*DeviceKey, error) {
@@ -229,78 +231,12 @@ func (pdk *privateDeviceKeyECDSA) DeviceKey() (*DeviceKey, error) {
 	return (*DeviceKey)(key), nil
 }
 
-func (pdk *privateDeviceKeyECDSA) Curve() Curve {
-	return pdk.curve
-}
-
 func (pdk *privateDeviceKeyECDSA) Agree(_ *DeviceKey) ([]byte, error) {
 	return nil, ErrUnsupportedAlgorithm
 }
 
 func (pdk *privateDeviceKeyECDSA) Mode() SDeviceKeyMode {
 	return SDeviceKeyModeSign
-}
-
-func (pdk *privateDeviceKeyECDSA) Sign(rand io.Reader, data []byte) ([]byte, error) {
-	hash, err := pdk.digestAlgorithm.Hash()
-	if err != nil {
-		return nil, err
-	}
-
-	hash.Reset()
-	hash.Write(data)
-	digest := hash.Sum(nil)
-
-	signatureASN1, err := ecdsa.SignASN1(rand, &pdk.key, digest)
-	if err != nil {
-		return nil, err
-	}
-
-	return asn1SignatureToConcat(pdk.curve, signatureASN1)
-}
-
-func asn1SignatureToConcat(curve Curve, signatureASN1 []byte) ([]byte, error) {
-	type EcdsaSignature struct {
-		R *big.Int
-		S *big.Int
-	}
-
-	signatureECDSA := new(EcdsaSignature)
-	rest, err := asn1.Unmarshal(signatureASN1, signatureECDSA)
-	if err != nil {
-		return nil, err
-	}
-	if len(rest) > 0 {
-		return nil, errors.New("TODO: trailing data")
-	}
-
-	rBytes := signatureECDSA.R.Bytes()
-	sBytes := signatureECDSA.S.Bytes()
-
-	var size int
-	switch curve {
-	case CurveP256, CurveBrainpoolP256r1:
-		size = 256
-	case CurveP384, CurveBrainpoolP320r1:
-		size = 384
-	case CurveBrainpoolP384r1:
-		size = 384
-	case CurveP521, CurveBrainpoolP512r1:
-		size = 521
-	default:
-		return nil, ErrUnsupportedCurve
-	}
-	byteSize := (size + 7) / 8
-
-	concatSignature := make([]byte, byteSize*2)
-
-	startR := byteSize - len(rBytes)
-	startS := (byteSize * 2) - len(sBytes)
-
-	copy(concatSignature[startR:], rBytes)
-	copy(concatSignature[startS:], sBytes)
-
-	return concatSignature, nil
 }
 
 type privateDeviceKeyEdDSA struct {

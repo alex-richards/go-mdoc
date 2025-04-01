@@ -1,11 +1,9 @@
 package mdoc
 
 import (
-	"bytes"
-	"encoding/hex"
-	"errors"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/go-cmp/cmp"
+	"io"
 	"testing"
 )
 
@@ -67,7 +65,7 @@ func Test_MarshalToTaggedEncodedCBOR(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := MarshalToNewTaggedEncodedCBOR(tt.value)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("Want error to be nil, got %v", err)
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatal(diff)
@@ -81,6 +79,7 @@ func Test_NewTaggedEncodedCBOR(t *testing.T) {
 		name          string
 		untaggedValue []byte
 		want          *TaggedEncodedCBOR
+		wantErr       error
 	}{
 		{
 			name:          "value",
@@ -93,11 +92,11 @@ func Test_NewTaggedEncodedCBOR(t *testing.T) {
 				UntaggedValue: []byte{1, 2, 3, 4},
 			},
 		},
-		//{
-		//	name:          "nil",
-		//	untaggedValue: nil,
-		//	wantErr: // TODO
-		//},
+		{
+			name:          "nil",
+			untaggedValue: nil,
+			wantErr:       ErrEmptyUntaggedValue,
+		},
 		{
 			name:          "empty",
 			untaggedValue: []byte{},
@@ -114,8 +113,8 @@ func Test_NewTaggedEncodedCBOR(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := NewTaggedEncodedCBOR(tt.untaggedValue)
-			if err != nil {
-				t.Fatal(err)
+			if err != tt.wantErr {
+				t.Fatalf("Want error %v, got %v", tt.wantErr, err)
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatal(diff)
@@ -183,14 +182,11 @@ func Test_TaggedEncodedCBOR_MarshalCBOR(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := cbor.Marshal(tt.taggedEncodedCBOR)
-			if err != nil && !errors.Is(err, tt.wantErr) {
-				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			if err != tt.wantErr {
+				t.Fatalf("Want error %v, got %v", tt.wantErr, err)
 			}
-			if err == nil && (tt.wantErr != nil) {
-				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
-			}
-			if !bytes.Equal(tt.want, got) {
-				t.Errorf("got = %v, want %v", hex.EncodeToString(got), hex.EncodeToString(tt.want))
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Error()
 			}
 		})
 	}
@@ -198,10 +194,11 @@ func Test_TaggedEncodedCBOR_MarshalCBOR(t *testing.T) {
 
 func Test_TaggedEncodedCBOR_UnmarshalCBOR(t *testing.T) {
 	tests := []struct {
-		name    string
-		data    []byte
-		want    TaggedEncodedCBOR
-		wantErr string
+		name           string
+		data           []byte
+		want           TaggedEncodedCBOR
+		wantErr        error
+		wantErrMessage string
 	}{
 		{
 			name: "unmarshal tagged",
@@ -224,17 +221,17 @@ func Test_TaggedEncodedCBOR_UnmarshalCBOR(t *testing.T) {
 			data: []byte{
 				cborEmptyMap,
 			},
-			wantErr: "cbor: cannot unmarshal map into Go value of type mdoc.bstr (expect CBOR tag value)",
+			wantErrMessage: "cbor: cannot unmarshal map into Go value of type mdoc.bstr (expect CBOR tag value)",
 		},
 		{
 			name:    "unmarshal empty",
 			data:    []byte{},
-			wantErr: "EOF",
+			wantErr: io.EOF,
 		},
 		{
 			name:    "unmarshal nil",
 			data:    nil,
-			wantErr: "EOF",
+			wantErr: io.EOF,
 		},
 	}
 
@@ -242,11 +239,8 @@ func Test_TaggedEncodedCBOR_UnmarshalCBOR(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var got TaggedEncodedCBOR
 			err := cbor.Unmarshal(tt.data, &got)
-			if err != nil && (err.Error() != tt.wantErr) {
-				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
-			}
-			if err == nil && (tt.wantErr != "") {
-				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			if err != nil && !(err == tt.wantErr || err.Error() == tt.wantErrMessage) {
+				t.Fatalf("Want error %v or %v, got %v", tt.wantErr, tt.wantErrMessage, err)
 			}
 			if diff := cmp.Diff(&tt.want, &got, cmp.AllowUnexported(TaggedEncodedCBOR{})); diff != "" {
 				t.Fatal(diff)

@@ -25,8 +25,8 @@ func Test_NewIACACertificate(t *testing.T) {
 		"Test IACA",
 		"NZ",
 		nil,
-		time.Now(),
-		time.Now().AddDate(0, 0, 1),
+		time.UnixMilli(1000),
+		time.UnixMilli(2000),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -50,13 +50,13 @@ func Test_NewIACACertificate(t *testing.T) {
 	derDS, err := NewDocumentSignerCertificate(
 		rand,
 		private,
-		*cert,
+		cert,
 		privateDS.Public(),
 		*big.NewInt(5678),
 		"Test Document Signer",
 		nil,
-		time.Now(),
-		time.Now().AddDate(0, 0, 1),
+		time.UnixMilli(1000),
+		time.UnixMilli(2000),
 	)
 	if err != nil {
 		t.Fatal(err)

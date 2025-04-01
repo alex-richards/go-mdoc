@@ -3,13 +3,14 @@ package mdoc
 import (
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/veraison/go-cose"
 )
 
 var (
-	ErrUnrecognisedHeaderType = errors.New("unrecognised type for header")
+	ErrUnrecognisedHeaderType = errors.New("mdoc: cose: unrecognized cose header type")
 )
 
 type coseSigner struct {
@@ -49,7 +50,7 @@ func (c Curve) coseSignAlgorithm() (cose.Algorithm, error) {
 }
 
 func coseSign(rand io.Reader, signer Signer, authStruct any) error {
-	sign1Message, ok := authStruct.(*cose.UntaggedSign1Message)
+	sign1Message, ok := authStruct.(*cose.Sign1Message)
 	if !ok {
 		panic("authStructure is not a UntaggedSign1Message")
 	}
@@ -63,7 +64,10 @@ func coseSign(rand io.Reader, signer Signer, authStruct any) error {
 }
 
 func coseSignDetached(rand io.Reader, signer Signer, authStruct any, payload []byte) error {
-	sign1Message, ok := authStruct.(*cose.UntaggedSign1Message)
+
+	fmt.Printf("%#v\n", authStruct)
+
+	sign1Message, ok := authStruct.(*cose.Sign1Message)
 	if !ok {
 		panic("authStructure is not a UntaggedSign1Message")
 	}
@@ -89,8 +93,8 @@ func coseX509Chain(from cose.UnprotectedHeader) ([]*x509.Certificate, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		return []*x509.Certificate{cert}, nil
+
 	case [][]byte:
 		certs := make([]*x509.Certificate, len(x509ChainEncoded))
 		for i, certEncoded := range x509ChainEncoded {
@@ -101,6 +105,7 @@ func coseX509Chain(from cose.UnprotectedHeader) ([]*x509.Certificate, error) {
 			certs[i] = cert
 		}
 		return certs, nil
+
 	default:
 		return nil, ErrUnrecognisedHeaderType
 	}

@@ -22,9 +22,9 @@ func Test_NewDeviceAuth(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			deviceAuthenticationBytes := &TaggedEncodedCBOR{
-				TaggedValue:   []byte{1, 2, 3, 4, 5, 6},
-				UntaggedValue: []byte{3, 4, 5, 6},
+			deviceAuthenticationBytes, err := NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
+			if err != nil {
+				t.Fatal(err)
 			}
 
 			deviceAuth, err := NewDeviceAuth(rand, sDeviceKey, deviceAuthenticationBytes)

@@ -3,8 +3,12 @@ package mdoc
 import (
 	"crypto/sha256"
 	"crypto/sha512"
-	"fmt"
+	"errors"
 	"hash"
+)
+
+var (
+	ErrUnsupportedDigestAlgorithm = errors.New("mdoc: unsupported digest algorithm")
 )
 
 type DigestAlgorithm string
@@ -25,6 +29,6 @@ func (da *DigestAlgorithm) Hash() (hash.Hash, error) {
 	case DigestAlgorithmSHA512:
 		return sha512.New(), nil
 	default:
-		return nil, fmt.Errorf("unsupported digest algorithm: %v", da)
+		return nil, ErrUnsupportedDigestAlgorithm
 	}
 }
