@@ -15,11 +15,10 @@ import (
 )
 
 var (
-	ErrMissingAlgorithmHeader       = errors.New("missing algorithm header")
-	ErrUnsupportedAlgorithm         = errors.New("unsupported algorithm")
-	ErrNoRootCertificates           = errors.New("no root certificates")
-	ErrEmptyChain                   = errors.New("empty chan")
-	ErrInvalidReaderAuthCertificate = errors.New("invalid reader auth certificate")
+	ErrMissingAlgorithmHeader       = errors.New("mdoc: missing algorithm header")
+	ErrNoRootCertificates           = errors.New("mdoc: no root certificates")
+	ErrEmptyChain                   = errors.New("mdoc: empty chan")
+	ErrInvalidReaderAuthCertificate = errors.New("mdoc: invalid reader auth certificate")
 )
 
 type ReaderAuth cose.UntaggedSign1Message
@@ -31,7 +30,8 @@ func NewReaderAuth(
 ) (*ReaderAuth, error) {
 	readerAuth := new(ReaderAuth)
 
-	if err := coseSignDetached(rand, readerAuthority, readerAuth, readerAuthenticationBytes.TaggedValue); err != nil {
+	err := coseSignDetached(rand, readerAuthority, readerAuth, readerAuthenticationBytes.TaggedValue)
+	if err != nil {
 		return nil, err
 	}
 
@@ -109,7 +109,6 @@ func validateReaderAuthenticationCertificate(certificate *x509.Certificate, sign
 
 	// TODO subject key identifier check
 
-	// TODO exclusive?
 	if certificate.KeyUsage != x509.KeyUsageDigitalSignature {
 		return ErrInvalidReaderAuthCertificate
 	}

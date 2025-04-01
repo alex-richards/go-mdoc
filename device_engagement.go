@@ -2,7 +2,6 @@ package mdoc
 
 import (
 	"errors"
-	"github.com/fxamacker/cbor/v2"
 )
 
 var (
@@ -51,15 +50,6 @@ func NewDeviceEngagementBLE(
 		nil,
 		nil,
 	}, nil
-}
-
-func (de *DeviceEngagement) EDeviceKey() (*DeviceKey, error) {
-	eDeviceKey := new(DeviceKey)
-	if err := cbor.Unmarshal(de.Security.EDeviceKeyBytes.UntaggedValue, eDeviceKey); err != nil {
-		return nil, err
-	}
-
-	return eDeviceKey, nil
 }
 
 type Security struct {

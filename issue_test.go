@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/x509"
 	"github.com/veraison/go-cose"
+	"math/big"
 	"testing"
 	"time"
 
@@ -12,9 +14,11 @@ import (
 )
 
 func Test_IssueMDoc(t *testing.T) {
-	random := NewDeterministicRand()
+	rand := NewDeterministicRand()
 
-	sDeviceKey, err := NewSDeviceKey(random, CurveP256, SDeviceKeyModeSign)
+	now := time.UnixMilli(1500)
+
+	sDeviceKey, err := NewSDeviceKey(rand, CurveP256, SDeviceKeyModeSign)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +55,7 @@ func Test_IssueMDoc(t *testing.T) {
 
 		for dataElementIdentifier, dataElementValue := range dataElements {
 			r := make([]byte, 16)
-			n, err := random.Read(r)
+			n, err := rand.Read(r)
 			if err != nil || n != 16 {
 				t.Fatal(err)
 			}
@@ -86,50 +90,83 @@ func Test_IssueMDoc(t *testing.T) {
 		},
 		DocType: "docType1",
 		ValidityInfo: ValidityInfo{
-			Signed:     time.Now(),
-			ValidFrom:  time.Now(),
-			ValidUntil: time.Now(),
+			Signed:     time.UnixMilli(1000),
+			ValidFrom:  time.UnixMilli(1000),
+			ValidUntil: time.UnixMilli(2000),
 		},
 	}
-	mobileSecurityObjectBytes, err := MarshalToNewTaggedEncodedCBOR(mobileSecurityObject)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	signingKey, err := ecdsa.GenerateKey(
+	iacaKey, err := ecdsa.GenerateKey(
 		elliptic.P256(),
-		random,
+		rand,
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	signer, err := cose.NewSigner(
-		cose.AlgorithmES256,
-		signingKey,
+	iacaCertificateDer, err := NewIACACertificate(
+		rand,
+		iacaKey, iacaKey.Public(),
+		*big.NewInt(1234),
+		"Test IACA",
+		"NZ", nil,
+		time.UnixMilli(1000),
+		time.UnixMilli(2000),
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iacaCertificate, err := x509.ParseCertificate(iacaCertificateDer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	documentSignerKey, err := ecdsa.GenerateKey(
+		elliptic.P256(),
+		rand,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	documentSignerCertificateDer, err := NewDocumentSignerCertificate(
+		rand,
+		iacaKey, iacaCertificate,
+		documentSignerKey.Public(),
+		*big.NewInt(5678),
+		"Test Document Signer",
+		nil,
+		time.UnixMilli(1000),
+		time.UnixMilli(2000),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	documentSignerCertificate, err := x509.ParseCertificate(documentSignerCertificateDer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	issuerAuthority := issuerAuthorityECDSA{
+		signerECDSA: signerECDSA{
+			key:             documentSignerKey,
+			curve:           CurveP256,
+			digestAlgorithm: DigestAlgorithmSHA256,
+		},
+		iacaCertificate:           iacaCertificate,
+		documentSignerCertificate: documentSignerCertificate,
+	}
+
+	issuerAuth, err := NewIssuerAuth(rand, &issuerAuthority, &mobileSecurityObject)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	issuerSigned := IssuerSigned{
-		IssuerAuth: IssuerAuth{
-			Headers: cose.Headers{
-				Protected:   cose.ProtectedHeader{},
-				Unprotected: cose.UnprotectedHeader{},
-			},
-			Payload: mobileSecurityObjectBytes.TaggedValue,
-		},
+		IssuerAuth: *issuerAuth,
 		NameSpaces: nameSpaces,
-	}
-
-	err = (*cose.Sign1Message)(&issuerSigned.IssuerAuth).Sign(
-		random,
-		nil,
-		signer,
-	)
-	if err != nil {
-		t.Fatal(err)
 	}
 
 	issuerSignedEncoded, err := cbor.Marshal(issuerSigned)
@@ -145,17 +182,17 @@ func Test_IssueMDoc(t *testing.T) {
 
 	verifier, err := cose.NewVerifier(
 		cose.AlgorithmES256,
-		signingKey.Public(),
+		documentSignerKey.Public(),
 	)
 	err = (*cose.Sign1Message)(&decoded.IssuerAuth).Verify([]byte{}, verifier)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	//err = decoded.Verify()
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
+	_, err = decoded.Verify([]*x509.Certificate{iacaCertificate}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	decodedMobileSecurityObject, err := decoded.IssuerAuth.MobileSecurityObject()
 	if err != nil {

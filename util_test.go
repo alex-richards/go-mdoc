@@ -5,11 +5,12 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/go-cmp/cmp"
 	"io"
+	"math/rand"
 	"testing"
 )
 
 func NewDeterministicRand() io.Reader {
-	return deterministicRand{1, 2, 3, 4}
+	return rand.New(rand.NewSource(1234))
 }
 
 type deterministicRand []byte

@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/veraison/go-cose"
 	"testing"
+	"time"
 )
 
 const (
@@ -494,6 +495,46 @@ func TestSpec_ReaderSessionEncryption(t *testing.T) {
 	}
 }
 
+func TestSpec_ReaderAuth_Verify(t *testing.T) {
+	readerRootEncoded := decodeHex(t, ReaderRootHex)
+
+	readerRoot, err := x509.ParseCertificate(readerRootEncoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sessionTranscriptEncoded := decodeHex(t, SessionTranscriptHex)
+
+	var sessionTranscriptBytes TaggedEncodedCBOR
+	err = cbor.Unmarshal(sessionTranscriptEncoded, &sessionTranscriptBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var sessionTranscript SessionTranscript
+	err = cbor.Unmarshal(sessionTranscriptBytes.UntaggedValue, &sessionTranscript)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deviceRequestEncoded := decodeHex(t, DeviceRequestHex)
+
+	var deviceRequest DeviceRequest
+	if err := cbor.Unmarshal(deviceRequestEncoded, &deviceRequest); err != nil {
+		t.Fatal(err)
+	}
+
+	now, err := time.Parse(time.RFC3339, "2021-01-02T15:04:05Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = deviceRequest.Verify([]*x509.Certificate{readerRoot}, now, &sessionTranscript)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSpec_DeviceRequest_Decode(t *testing.T) {
 	deviceRequestBytes := decodeHex(t, DeviceRequestHex)
 
@@ -511,26 +552,25 @@ func TestSpec_DeviceRequest_Decode(t *testing.T) {
 }
 
 func TestSpec_DeviceRequest_Verify(t *testing.T) {
-	// TODO
-	//readerRoot := spec_ReaderRoot(t)
-	//deviceRequestBytes := decodeHex(t, DeviceRequestHex)
-	//
-	//var deviceRequest DeviceRequest
-	//if err := cbor.Unmarshal(deviceRequestBytes, &deviceRequest); err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//readerAuthenticationBytes := decodeHex(t, ReaderAuthenticationHex)
-	//readerAuthenticationTagged := &TaggedEncodedCBOR{TaggedValue: readerAuthenticationBytes}
-	//
-	//err := deviceRequest.DocRequests[0].ReaderAuth.Verify(
-	//	[]*x509.Certificate{readerRoot},
-	//	readerRoot.NotBefore,
-	//	readerAuthentication,
-	//)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
+	readerRoot := spec_ReaderRoot(t)
+	deviceRequestBytes := decodeHex(t, DeviceRequestHex)
+
+	var deviceRequest DeviceRequest
+	if err := cbor.Unmarshal(deviceRequestBytes, &deviceRequest); err != nil {
+		t.Fatal(err)
+	}
+
+	readerAuthenticationEncoded := decodeHex(t, ReaderAuthenticationHex)
+	readerAuthenticationBytes := &TaggedEncodedCBOR{TaggedValue: readerAuthenticationEncoded}
+
+	err := deviceRequest.DocRequests[0].ReaderAuth.Verify(
+		[]*x509.Certificate{readerRoot},
+		readerRoot.NotBefore,
+		readerAuthenticationBytes,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestSpec_DeviceResponse_Decode(t *testing.T) {
@@ -578,28 +618,28 @@ func TestSpec_DeviceResponse_IssuerAuth_Verify(t *testing.T) {
 }
 
 func TestSpec_DeviceResponse_DeviceAuth_Verify(t *testing.T) {
-	// TODO
-	//deviceResponseBytes := decodeHex(t, DeviceResponseHex)
-	//
-	//var deviceResponse DeviceResponse
-	//if err := cbor.Unmarshal(deviceResponseBytes, &deviceResponse); err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//deviceAuthenticationBytes := decodeHex(t, DeviceAuthenticationHex)
-	//deviceAuthenticationTagged, err := NewTaggedEncodedCBOR(deviceAuthenticationBytes)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//// TODO requires CoseMAC0
-	//err = deviceResponse.Documents[0].DeviceSigned.DeviceAuth.Verify(
-	//	spec_SDeviceKey(t),
-	//	deviceAuthenticationTagged,
-	//)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
+	deviceResponseBytes := decodeHex(t, DeviceResponseHex)
+
+	var deviceResponse DeviceResponse
+	if err := cbor.Unmarshal(deviceResponseBytes, &deviceResponse); err != nil {
+		t.Fatal(err)
+	}
+
+	deviceAuthenticationEncoded := decodeHex(t, DeviceAuthenticationHex)
+	deviceAuthenticationBytes, err := NewTaggedEncodedCBOR(deviceAuthenticationEncoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = deviceResponse.Documents[0].DeviceSigned.DeviceAuth.Verify(
+		spec_SDeviceKey(t),
+		deviceAuthenticationBytes,
+	)
+
+	// TODO requires CoseMAC0
+	if err != ErrMACAuthNotSupported {
+		t.Fatal(err)
+	}
 }
 
 func TestSpec_SessionTranscript_RoundTrip(t *testing.T) {

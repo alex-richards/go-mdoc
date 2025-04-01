@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	ErrDeviceRequestUnsupportedVersion = errors.New("unsupported device request version")
+	ErrDeviceRequestUnsupportedVersion = errors.New("mdoc: unsupported device request version")
+	ErrMissingReaderAuth               = errors.New("mdoc: missing reader auth")
 )
 
 const (
@@ -106,7 +107,7 @@ func (dr DocRequest) Verify(
 	sessionTranscript *SessionTranscript,
 ) error {
 	if dr.ReaderAuth == nil {
-		return errors.New("missing ReaderAuth") // TODO
+		return ErrMissingReaderAuth
 	}
 
 	readerAuthenticationBytes, err := NewReaderAuthenticationBytes(

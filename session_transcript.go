@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ErrUnrecognizedHandover = errors.New("unrecognized handover")
+	ErrUnrecognizedHandover = errors.New("mdoc: unrecognized handover")
 )
 
 type SessionTranscript struct {
@@ -91,7 +91,7 @@ func (qrh *QRHandover) MarshalCBOR() ([]byte, error) {
 }
 func (qrh *QRHandover) UnmarshalCBOR(data []byte) error {
 	if !bytes.Equal([]byte{cborNull}, data) {
-		return errors.New("not a qr handover")
+		return errors.New("mdoc: not a qr handover")
 	}
 	return nil
 }

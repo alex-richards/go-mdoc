@@ -3,7 +3,6 @@ package mdoc
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
 	"github.com/google/go-cmp/cmp"
 	"github.com/veraison/go-cose"
 	"testing"
@@ -59,14 +58,11 @@ func Test_coseX509Chain(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := coseX509Chain(tt.unprotectedHeaders)
-			if err != nil && !errors.Is(err, tt.wantErr) {
-				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if err == nil && tt.wantErr != nil {
-				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
+			if err != tt.wantErr {
+				t.Fatalf("Want err: %v, got: %v", tt.wantErr, err)
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Error(diff)
+				t.Fatal(diff)
 			}
 		})
 	}

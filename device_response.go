@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	ErrMissingDigest = errors.New("missing digest")
-	ErrInvalidDigest = errors.New("incorrect digest")
+	ErrMissingDigest               = errors.New("mdoc: missing digest")
+	ErrInvalidDigest               = errors.New("mdoc: incorrect digest")
+	ErrUnauthorizedDeviceNameSpace = errors.New("mdoc: unauthorized device name space")
 )
 
 type DeviceResponse struct {
@@ -372,14 +373,11 @@ func (dns DeviceNameSpaces) Verify(
 	}
 
 	keyAuthorizations := mobileSecurityObject.DeviceKeyInfo.KeyAuthorizations
-	if keyAuthorizations == nil {
-		return errors.New("unverifed dev NS") // TODO
-	}
 
 	for nameSpace, deviceSignedItems := range dns {
 		for dataElementIdentifier := range deviceSignedItems {
-			if !keyAuthorizations.Contains(nameSpace, dataElementIdentifier) {
-				return errors.New("unverifed dev NS") // TODO
+			if keyAuthorizations == nil || !keyAuthorizations.Contains(nameSpace, dataElementIdentifier) {
+				return ErrUnauthorizedDeviceNameSpace
 			}
 		}
 	}

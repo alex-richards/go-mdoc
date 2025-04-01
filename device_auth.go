@@ -8,10 +8,10 @@ import (
 )
 
 var (
-	ErrNoDeviceAuthPresent        = errors.New("no device auth present")
-	ErrMultipleDeviceAuthsPresent = errors.New("multiple device auths present")
+	ErrNoDeviceAuthPresent        = errors.New("mdoc: no device auth present")
+	ErrMultipleDeviceAuthsPresent = errors.New("mdoc: multiple device auths present")
 
-	ErrMACAuthNotSupported = errors.New("MAC auth not supported")
+	ErrMACAuthNotSupported = errors.New("mdoc: MAC auth not supported")
 )
 
 type DeviceAuth struct {
@@ -27,8 +27,10 @@ func NewDeviceAuth(
 	switch privateSDeviceKey.Mode() {
 	case SDeviceKeyModeSign:
 		return newSignedDeviceAuth(rand, privateSDeviceKey, deviceAuthenticationBytes)
+
 	case SDeviceKeyModeMAC:
 		return newTaggedDeviceAuth()
+
 	default:
 		panic("invalid privateSDeviceKey mode")
 	}
@@ -41,14 +43,11 @@ func newSignedDeviceAuth(
 ) (*DeviceAuth, error) {
 	deviceAuth := &DeviceAuth{DeviceSignature: &DeviceSignature{}}
 
-	coseSigner, err := newCoseSigner(signer)
+	err := coseSignDetached(rand, signer, (*cose.Sign1Message)(deviceAuth.DeviceSignature), deviceAuthenticationBytes.TaggedValue)
 	if err != nil {
 		return nil, err
 	}
 
-	deviceAuth.DeviceSignature.Payload = deviceAuthenticationBytes.TaggedValue
-	err = (*cose.Sign1Message)(deviceAuth.DeviceSignature).Sign(rand, []byte{}, coseSigner)
-	deviceAuth.DeviceSignature.Payload = nil
 	return deviceAuth, nil
 }
 
@@ -88,6 +87,7 @@ func verifyDeviceSignature(
 	deviceSignature.Payload = deviceAuthenticationBytes.TaggedValue
 	err = (*cose.Sign1Message)(deviceSignature).Verify([]byte{}, coseVerifier)
 	deviceSignature.Payload = nil
+
 	return err
 }
 
