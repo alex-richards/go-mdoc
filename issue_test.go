@@ -39,19 +39,19 @@ func Test_IssueMDoc(t *testing.T) {
 			"dataElementIdentifier1": "value1",
 			"dataElementIdentifier2": "value2",
 		},
+		"nameSpace2": {
+			"dataElementIdentifier1": "value1",
+			"dataElementIdentifier2": "value2",
+		},
 	}
 
 	nameSpaces := make(IssuerNameSpaces, len(items))
-	nameSpaceDigests := make(NameSpaceDigests, len(items))
 
 	for nameSpace, dataElements := range items {
 		digestID := DigestID(0)
 
 		issuerSignedItemBytess := make(IssuerSignedItemBytess, len(dataElements))
 		nameSpaces[NameSpace(nameSpace)] = issuerSignedItemBytess
-
-		valueDigests := make(ValueDigests, len(dataElements))
-		nameSpaceDigests[NameSpace(nameSpace)] = valueDigests
 
 		for dataElementIdentifier, dataElementValue := range dataElements {
 			r := make([]byte, 16)
@@ -75,26 +75,24 @@ func Test_IssueMDoc(t *testing.T) {
 
 			digest.Reset()
 			digest.Write(issuerSignedItemBytes.TaggedValue)
-			valueDigests[digestID] = digest.Sum(nil)
 
 			digestID++
 		}
 	}
 
-	mobileSecurityObject := MobileSecurityObject{
-		Version:         "1.0",
-		DigestAlgorithm: digestAlgorithm,
-		ValueDigests:    nameSpaceDigests,
-		DeviceKeyInfo: DeviceKeyInfo{
-			DeviceKey: *sDeviceKeyPublic,
-		},
-		DocType: "docType1",
-		ValidityInfo: ValidityInfo{
+	mobileSecurityObject, err := NewMobileSecurityObject(
+		"docType1",
+		digestAlgorithm,
+		nameSpaces,
+		sDeviceKeyPublic,
+		&ValidityInfo{
 			Signed:     time.UnixMilli(1000),
 			ValidFrom:  time.UnixMilli(1000),
 			ValidUntil: time.UnixMilli(2000),
 		},
-	}
+		nil,
+		nil,
+	)
 
 	iacaKey, err := ecdsa.GenerateKey(
 		elliptic.P256(),
@@ -159,7 +157,7 @@ func Test_IssueMDoc(t *testing.T) {
 		documentSignerCertificate: documentSignerCertificate,
 	}
 
-	issuerAuth, err := NewIssuerAuth(rand, &issuerAuthority, &mobileSecurityObject)
+	issuerAuth, err := NewIssuerAuth(rand, &issuerAuthority, mobileSecurityObject)
 	if err != nil {
 		t.Fatal(err)
 	}

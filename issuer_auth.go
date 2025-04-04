@@ -19,6 +19,7 @@ var (
 	ErrInvalidIACARootCertificate        = errors.New("mdoc: invalid IACA root certificate")
 	ErrUnexpectedIntermediateCertificate = errors.New("mdoc: unexpected intermediate certificate")
 	ErrInvalidDocumentSignerCertificate  = errors.New("mdoc: invalid document signer certificate")
+	ErrDuplicateDigestID                 = errors.New("mdoc: duplicate digest ID")
 )
 
 const (
@@ -283,12 +284,20 @@ func NewMobileSecurityObject(
 	for nameSpace, issuerSignedItemBytess := range nameSpaces {
 		valueDigests := make(ValueDigests, len(issuerSignedItemBytess))
 		nameSpaceDigests[nameSpace] = valueDigests
-		for i, issuerSignedItemBytes := range issuerSignedItemBytess {
-			digestId := (DigestID)(i)
+		for _, issuerSignedItemBytes := range issuerSignedItemBytess {
+			issuerSignedItem, err := issuerSignedItemBytes.IssuerSignedItem()
+			if err != nil {
+				return nil, err
+			}
+
 			hash.Reset()
 			hash.Write(issuerSignedItemBytes.TaggedValue)
 			h := hash.Sum(nil)
-			valueDigests[digestId] = h
+			_, exists := valueDigests[issuerSignedItem.DigestID]
+			if exists {
+				return nil, ErrDuplicateDigestID
+			}
+			valueDigests[issuerSignedItem.DigestID] = h
 		}
 	}
 
