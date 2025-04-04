@@ -97,7 +97,7 @@ func NewDocumentSignerCertificate(
 	notBefore, notAfter time.Time,
 ) ([]byte, error) {
 	switch publicKey.(type) {
-	case *ecdsa.PublicKey, *ed25519.PublicKey: // allow
+	case *ecdsa.PublicKey, ed25519.PublicKey: // allow
 	default:
 		return nil, ErrDocumentSignerUnsupportedPublicKeyType
 	}
@@ -118,13 +118,10 @@ func NewDocumentSignerCertificate(
 			CommonName: commonName,
 			Country:    iacaCertificate.Subject.Country,
 		},
-		KeyUsage:              x509.KeyUsageDigitalSignature,
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-		MaxPathLen:            0,
-		UnknownExtKeyUsage:    []asn1.ObjectIdentifier{documentSignerKeyUsage},
-		NotBefore:             notBefore,
-		NotAfter:              notAfter,
+		KeyUsage:           x509.KeyUsageDigitalSignature,
+		UnknownExtKeyUsage: []asn1.ObjectIdentifier{documentSignerKeyUsage},
+		NotBefore:          notBefore,
+		NotAfter:           notAfter,
 	}
 
 	if state == nil {

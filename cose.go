@@ -3,7 +3,6 @@ package mdoc
 import (
 	"crypto/x509"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/veraison/go-cose"
@@ -64,9 +63,6 @@ func coseSign(rand io.Reader, signer Signer, authStruct any) error {
 }
 
 func coseSignDetached(rand io.Reader, signer Signer, authStruct any, payload []byte) error {
-
-	fmt.Printf("%#v\n", authStruct)
-
 	sign1Message, ok := authStruct.(*cose.Sign1Message)
 	if !ok {
 		panic("authStructure is not a UntaggedSign1Message")

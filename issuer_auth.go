@@ -80,9 +80,9 @@ func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time
 		rootCertificates,
 		chain,
 		now,
-		validateIACARootCertificate,
+		ValidateIACACertificate,
 		validateIntermediateDocumentCertificate,
-		validateDocumentSignerCertificate,
+		ValidateDocumentSignerCertificate,
 	)
 	if err != nil {
 		return err
@@ -104,7 +104,7 @@ func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time
 	)
 }
 
-func validateIACARootCertificate(iacaCertificate *x509.Certificate) error {
+func ValidateIACACertificate(iacaCertificate *x509.Certificate) error {
 	if iacaCertificate.Version != 3 {
 		return ErrInvalidIACARootCertificate
 	}
@@ -171,7 +171,7 @@ func validateIntermediateDocumentCertificate(_ *x509.Certificate, _ *x509.Certif
 	return ErrUnexpectedIntermediateCertificate
 }
 
-func validateDocumentSignerCertificate(documentSignerCertificate *x509.Certificate, iacaCertificate *x509.Certificate) error {
+func ValidateDocumentSignerCertificate(documentSignerCertificate *x509.Certificate, iacaCertificate *x509.Certificate) error {
 	if documentSignerCertificate.Version != 3 {
 		return ErrInvalidDocumentSignerCertificate
 	}
@@ -194,10 +194,10 @@ func validateDocumentSignerCertificate(documentSignerCertificate *x509.Certifica
 	switch documentSignerCertificate.SignatureAlgorithm {
 	case x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512:
 		// allow
-		// TODO edwards
 	default:
 		return ErrInvalidDocumentSignerCertificate
 	}
+
 	switch documentSignerCertificate.PublicKeyAlgorithm {
 	case x509.ECDSA:
 		_, ok := documentSignerCertificate.PublicKey.(*ecdsa.PublicKey)
@@ -206,7 +206,7 @@ func validateDocumentSignerCertificate(documentSignerCertificate *x509.Certifica
 		}
 
 	case x509.Ed25519:
-		_, ok := documentSignerCertificate.PublicKey.(*ed25519.PublicKey)
+		_, ok := documentSignerCertificate.PublicKey.(ed25519.PublicKey)
 		if !ok {
 			return ErrInvalidDocumentSignerCertificate
 		}
