@@ -6,6 +6,7 @@ toolchain go1.23.5
 
 require (
 	github.com/fxamacker/cbor/v2 v2.7.0
+	github.com/jawher/mow.cli v1.2.0
 	github.com/veraison/go-cose v1.3.0
 	golang.org/x/crypto v0.36.0
 )
