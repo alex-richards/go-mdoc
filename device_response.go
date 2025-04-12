@@ -225,7 +225,7 @@ func (is IssuerSigned) Verify(rootCertificates []*x509.Certificate, now time.Tim
 	return mobileSecurityObject, nil
 }
 
-type IssuerNameSpaces map[NameSpace]IssuerSignedItemBytess
+type IssuerNameSpaces map[NameSpace][]IssuerSignedItemBytes
 
 func (ins IssuerNameSpaces) Filter(filter func(nameSpace NameSpace, dataElementIdentifier DataElementIdentifier) bool) (IssuerNameSpaces, error) {
 	filteredIssuerNameSpaces := make(IssuerNameSpaces)
@@ -239,7 +239,7 @@ func (ins IssuerNameSpaces) Filter(filter func(nameSpace NameSpace, dataElementI
 			if filter(nameSpace, issuerSignedItem.ElementIdentifier) {
 				filteredIssuerSignedItemBytess, ok := filteredIssuerNameSpaces[nameSpace]
 				if !ok {
-					filteredIssuerSignedItemBytess = make(IssuerSignedItemBytess, 0)
+					filteredIssuerSignedItemBytess = make([]IssuerSignedItemBytes, 0)
 				}
 				filteredIssuerNameSpaces[nameSpace] = append(filteredIssuerSignedItemBytess, issuerSignedItemBytes)
 			}
@@ -264,8 +264,32 @@ func (ins IssuerNameSpaces) IssuerSignedItems() (IssuerSignedItems, error) {
 	return issuerSignedItemss, nil
 }
 
-type IssuerSignedItemBytess []IssuerSignedItemBytes
 type IssuerSignedItemBytes TaggedEncodedCBOR
+
+func CreateIssuerSignedItemBytes(
+	rand io.Reader,
+	digestID DigestID,
+	elementIdentifier DataElementIdentifier,
+	elementValue DataElementValue,
+) (*IssuerSignedItemBytes, error) {
+	random := make([]byte, 16)
+	_, err := rand.Read(random)
+	if err != nil {
+		return nil, err
+	}
+
+	issuerSignedItemBytes, err := MarshalToNewTaggedEncodedCBOR(IssuerSignedItem{
+		DigestID:          digestID,
+		Random:            random,
+		ElementIdentifier: elementIdentifier,
+		ElementValue:      elementValue,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return (*IssuerSignedItemBytes)(issuerSignedItemBytes), nil
+}
 
 func (isib *IssuerSignedItemBytes) MarshalCBOR() ([]byte, error) {
 	return (*TaggedEncodedCBOR)(isib).MarshalCBOR()
