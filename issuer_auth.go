@@ -365,8 +365,8 @@ type DataElementsArray []DataElementIdentifier
 type KeyInfo map[int]any
 
 type ValidityInfo struct {
-	Signed         time.Time
-	ValidFrom      time.Time
-	ValidUntil     time.Time
-	ExpectedUpdate *time.Time
+	Signed         time.Time  `cbor:"signed"`
+	ValidFrom      time.Time  `cbor:"validFrom"`
+	ValidUntil     time.Time  `cbor:"validUntil"`
+	ExpectedUpdate *time.Time `cbor:"expectedUpdate,omitempty"`
 }

@@ -25,22 +25,58 @@ var (
 
 type IssuerAuthority interface {
 	Signer
-	IACACertificate() *x509.Certificate
 	DocumentSignerCertificate() *x509.Certificate
+}
+
+func NewIssuerAuthority(
+	signer crypto.Signer,
+	documentSignerCertificate *x509.Certificate,
+) (IssuerAuthority, error) {
+	switch signer := signer.(type) {
+	case *ecdsa.PrivateKey:
+		return &issuerAuthorityECDSA{
+			signerECDSA: signerECDSA{
+				key:             signer,
+				curve:           CurveP256,
+				digestAlgorithm: DigestAlgorithmSHA256,
+			},
+			documentSignerCertificate: documentSignerCertificate,
+		}, nil
+
+	case ed25519.PrivateKey:
+		return &issuerAuthorityEd25519{
+			signer,
+			documentSignerCertificate,
+		}, nil
+	}
+
+	return nil, errors.New("TODO") // TODO
 }
 
 type issuerAuthorityECDSA struct {
 	signerECDSA
-	iacaCertificate           *x509.Certificate
 	documentSignerCertificate *x509.Certificate
-}
-
-func (a *issuerAuthorityECDSA) IACACertificate() *x509.Certificate {
-	return a.iacaCertificate
 }
 
 func (a *issuerAuthorityECDSA) DocumentSignerCertificate() *x509.Certificate {
 	return a.documentSignerCertificate
+}
+
+type issuerAuthorityEd25519 struct {
+	signer      ed25519.PrivateKey
+	certificate *x509.Certificate
+}
+
+func (a *issuerAuthorityEd25519) Sign(_ io.Reader, data []byte) ([]byte, error) {
+	return ed25519.Sign(a.signer, data), nil
+}
+
+func (a *issuerAuthorityEd25519) Curve() Curve {
+	return CurveEd25519
+}
+
+func (a *issuerAuthorityEd25519) DocumentSignerCertificate() *x509.Certificate {
+	return a.certificate
 }
 
 func NewIACACertificate(

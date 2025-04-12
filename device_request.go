@@ -167,3 +167,12 @@ type DocType string
 type NameSpace string
 type DataElementIdentifier string
 type DataElementValue any
+
+type TypedDataElementValue struct {
+	CBORType CBORType
+	Value    DataElementValue
+}
+
+func (v *TypedDataElementValue) MarshalCBOR() ([]byte, error) {
+	return marshalCBORTypedValue(v.CBORType, v.Value)
+}

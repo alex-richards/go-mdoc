@@ -28,12 +28,6 @@ func Test_IssueMDoc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	digestAlgorithm := DigestAlgorithmSHA256
-	digest, err := digestAlgorithm.Hash()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	items := map[string]map[string]string{
 		"nameSpace1": {
 			"dataElementIdentifier1": "value1",
@@ -50,7 +44,7 @@ func Test_IssueMDoc(t *testing.T) {
 	for nameSpace, dataElements := range items {
 		digestID := DigestID(0)
 
-		issuerSignedItemBytess := make(IssuerSignedItemBytess, len(dataElements))
+		issuerSignedItemBytess := make([]IssuerSignedItemBytes, len(dataElements))
 		nameSpaces[NameSpace(nameSpace)] = issuerSignedItemBytess
 
 		for dataElementIdentifier, dataElementValue := range dataElements {
@@ -73,11 +67,14 @@ func Test_IssueMDoc(t *testing.T) {
 			}
 			issuerSignedItemBytess[digestID] = (IssuerSignedItemBytes)(*issuerSignedItemBytes)
 
-			digest.Reset()
-			digest.Write(issuerSignedItemBytes.TaggedValue)
-
 			digestID++
 		}
+	}
+
+	digestAlgorithm := DigestAlgorithmSHA256
+	digest, err := digestAlgorithm.Hash()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	mobileSecurityObject, err := NewMobileSecurityObject(
