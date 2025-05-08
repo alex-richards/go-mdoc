@@ -1,4 +1,4 @@
-package mdoc
+package issuer
 
 import (
 	"crypto"
@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"errors"
+	"github.com/alex-richards/go-mdoc"
 	"io"
 	"math/big"
 	"reflect"
@@ -24,59 +25,8 @@ var (
 )
 
 type IssuerAuthority interface {
-	Signer
+	Signer() mdoc.Signer
 	DocumentSignerCertificate() *x509.Certificate
-}
-
-func NewIssuerAuthority(
-	signer crypto.Signer,
-	documentSignerCertificate *x509.Certificate,
-) (IssuerAuthority, error) {
-	switch signer := signer.(type) {
-	case *ecdsa.PrivateKey:
-		return &issuerAuthorityECDSA{
-			signerECDSA: signerECDSA{
-				key:             signer,
-				curve:           CurveP256,
-				digestAlgorithm: DigestAlgorithmSHA256,
-			},
-			documentSignerCertificate: documentSignerCertificate,
-		}, nil
-
-	case ed25519.PrivateKey:
-		return &issuerAuthorityEd25519{
-			signer,
-			documentSignerCertificate,
-		}, nil
-	}
-
-	return nil, errors.New("TODO") // TODO
-}
-
-type issuerAuthorityECDSA struct {
-	signerECDSA
-	documentSignerCertificate *x509.Certificate
-}
-
-func (a *issuerAuthorityECDSA) DocumentSignerCertificate() *x509.Certificate {
-	return a.documentSignerCertificate
-}
-
-type issuerAuthorityEd25519 struct {
-	signer      ed25519.PrivateKey
-	certificate *x509.Certificate
-}
-
-func (a *issuerAuthorityEd25519) Sign(_ io.Reader, data []byte) ([]byte, error) {
-	return ed25519.Sign(a.signer, data), nil
-}
-
-func (a *issuerAuthorityEd25519) Curve() Curve {
-	return CurveEd25519
-}
-
-func (a *issuerAuthorityEd25519) DocumentSignerCertificate() *x509.Certificate {
-	return a.certificate
 }
 
 func NewIACACertificate(
@@ -93,7 +43,7 @@ func NewIACACertificate(
 		return nil, ErrIACAUnsupportedPublicKeyType
 	}
 
-	maxNotAfter := notBefore.AddDate(iacaMaxAgeYears, 0, 0)
+	maxNotAfter := notBefore.AddDate(mdoc.IACAMaxAgeYears, 0, 0)
 	if notAfter.Compare(maxNotAfter) > 0 {
 		return nil, ErrIACAUnsupportedValidityTooLong
 	}
@@ -143,7 +93,7 @@ func NewDocumentSignerCertificate(
 		return nil, ErrDocumentSignerValidityMustBeWithinIACAValidity
 	}
 
-	maxNotAfter := notBefore.AddDate(0, 0, documentSignerMaxAgeDays)
+	maxNotAfter := notBefore.AddDate(0, 0, mdoc.DocumentSignerMaxAgeDays)
 	if notAfter.Compare(maxNotAfter) > 0 {
 		return nil, ErrDocumentSignerValidityTooLong
 	}
@@ -155,7 +105,7 @@ func NewDocumentSignerCertificate(
 			Country:    iacaCertificate.Subject.Country,
 		},
 		KeyUsage:           x509.KeyUsageDigitalSignature,
-		UnknownExtKeyUsage: []asn1.ObjectIdentifier{documentSignerKeyUsage},
+		UnknownExtKeyUsage: []asn1.ObjectIdentifier{mdoc.DocumentSignerKeyUsage},
 		NotBefore:          notBefore,
 		NotAfter:           notAfter,
 	}

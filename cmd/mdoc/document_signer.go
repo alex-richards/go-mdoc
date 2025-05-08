@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/issuer"
 	cli "github.com/jawher/mow.cli"
 	"io"
 	"log"
@@ -191,7 +192,7 @@ func cmdDocSignerCreateAction(
 		log.Fatal(err)
 	}
 
-	documentSignerCertificateDER, err := mdoc.NewDocumentSignerCertificate(
+	documentSignerCertificateDER, err := issuer.NewDocumentSignerCertificate(
 		rand.Reader,
 		iacaPrivateKey,
 		iacaCertificate,

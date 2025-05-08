@@ -1,4 +1,4 @@
-package mdoc
+package util
 
 import (
 	"errors"

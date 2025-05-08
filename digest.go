@@ -17,7 +17,6 @@ const (
 	DigestAlgorithmSHA256 DigestAlgorithm = "SHA-256"
 	DigestAlgorithmSHA384 DigestAlgorithm = "SHA-384"
 	DigestAlgorithmSHA512 DigestAlgorithm = "SHA-512"
-	DigestAlgorithmNone   DigestAlgorithm = "none"
 )
 
 func (da *DigestAlgorithm) Hash() (hash.Hash, error) {
@@ -31,4 +30,19 @@ func (da *DigestAlgorithm) Hash() (hash.Hash, error) {
 	default:
 		return nil, ErrUnsupportedDigestAlgorithm
 	}
+}
+
+func (da *DigestAlgorithm) Sum(data []byte) ([]byte, error) {
+	h, err := da.Hash()
+	if err != nil {
+		return nil, err
+	}
+
+	h.Reset()
+	_, err = h.Write(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return h.Sum(nil), nil
 }

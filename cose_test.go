@@ -3,6 +3,7 @@ package mdoc
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"github.com/google/go-cmp/cmp"
 	"github.com/veraison/go-cose"
 	"testing"
@@ -10,13 +11,14 @@ import (
 )
 
 func Test_coseX509Chain(t *testing.T) {
-	rand := NewDeterministicRand()
-	cert := createCA(t, rand, x509.Certificate{
+	rand := testutil.NewDeterministicRand(t)
+
+	cert := testutil.CreateCA(t, rand, x509.Certificate{
 		Subject:   pkix.Name{CommonName: "cert"},
 		Issuer:    pkix.Name{CommonName: "cert"},
 		NotBefore: time.UnixMilli(1000),
 		NotAfter:  time.UnixMilli(2000),
-	}).cert
+	}).Cert
 
 	tests := []struct {
 		name               string

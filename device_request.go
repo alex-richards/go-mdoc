@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"github.com/fxamacker/cbor/v2"
-	"io"
 	"time"
 )
 
@@ -64,30 +63,6 @@ func NewDocRequest(itemsRequest *ItemsRequest) (*DocRequest, error) {
 		ItemsRequestBytes: *itemsRequestBytes,
 		ReaderAuth:        nil,
 	}, nil
-}
-
-func NewAuthenticatedDocRequest(
-	rand io.Reader,
-	readerAuthority ReaderAuthority,
-	itemsRequest *ItemsRequest,
-	sessionTranscript *SessionTranscript,
-) (*DocRequest, error) {
-	docRequest, err := NewDocRequest(itemsRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	readerAuthenticationBytes, err := NewReaderAuthenticationBytes(sessionTranscript, &docRequest.ItemsRequestBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	docRequest.ReaderAuth, err = NewReaderAuth(rand, readerAuthority, readerAuthenticationBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return docRequest, nil
 }
 
 func (dr DocRequest) ItemsRequest() (*ItemsRequest, error) {

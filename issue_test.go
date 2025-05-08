@@ -5,6 +5,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/x509"
+	"github.com/alex-richards/go-mdoc/internal/testutil"
+	"github.com/alex-richards/go-mdoc/issuer"
 	"github.com/veraison/go-cose"
 	"math/big"
 	"testing"
@@ -14,7 +16,7 @@ import (
 )
 
 func Test_IssueMDoc(t *testing.T) {
-	rand := NewDeterministicRand()
+	rand := testutil.NewDeterministicRand(t)
 
 	now := time.UnixMilli(1500)
 
@@ -99,7 +101,7 @@ func Test_IssueMDoc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	iacaCertificateDer, err := NewIACACertificate(
+	iacaCertificateDer, err := issuer.NewIACACertificate(
 		rand,
 		iacaKey, iacaKey.Public(),
 		*big.NewInt(1234),
@@ -125,7 +127,7 @@ func Test_IssueMDoc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	documentSignerCertificateDer, err := NewDocumentSignerCertificate(
+	documentSignerCertificateDer, err := issuer.NewDocumentSignerCertificate(
 		rand,
 		iacaKey, iacaCertificate,
 		documentSignerKey.Public(),
@@ -150,11 +152,10 @@ func Test_IssueMDoc(t *testing.T) {
 			curve:           CurveP256,
 			digestAlgorithm: DigestAlgorithmSHA256,
 		},
-		iacaCertificate:           iacaCertificate,
 		documentSignerCertificate: documentSignerCertificate,
 	}
 
-	issuerAuth, err := NewIssuerAuth(rand, &issuerAuthority, mobileSecurityObject)
+	issuerAuth, err := issuer.NewIssuerAuth(rand, &issuerAuthority, mobileSecurityObject)
 	if err != nil {
 		t.Fatal(err)
 	}

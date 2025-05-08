@@ -1,9 +1,12 @@
 package mdoc
 
-import "testing"
+import (
+	"github.com/alex-richards/go-mdoc/internal/testutil"
+	"testing"
+)
 
 func Test_NewDeviceAuth(t *testing.T) {
-	rand := NewDeterministicRand()
+	rand := testutil.NewDeterministicRand(t)
 	tests := []struct {
 		name string
 		mode SDeviceKeyMode
@@ -49,7 +52,8 @@ func Test_NewDeviceAuth(t *testing.T) {
 }
 
 func Test_DeviceAuth_Verify(t *testing.T) {
-	rand := NewDeterministicRand()
+	rand := testutil.NewDeterministicRand(t)
+
 	tests := []struct {
 		name                            string
 		mode                            SDeviceKeyMode

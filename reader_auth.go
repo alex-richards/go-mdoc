@@ -7,7 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
-	"io"
+	mdocX509 "github.com/alex-richards/go-mdoc/internal/x509"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -22,21 +22,6 @@ var (
 )
 
 type ReaderAuth cose.UntaggedSign1Message
-
-func NewReaderAuth(
-	rand io.Reader,
-	readerAuthority ReaderAuthority,
-	readerAuthenticationBytes *TaggedEncodedCBOR,
-) (*ReaderAuth, error) {
-	readerAuth := new(ReaderAuth)
-
-	err := coseSignDetached(rand, readerAuthority, readerAuth, readerAuthenticationBytes.TaggedValue)
-	if err != nil {
-		return nil, err
-	}
-
-	return readerAuth, nil
-}
 
 func (ra *ReaderAuth) MarshalCBOR() ([]byte, error) {
 	return cbor.Marshal((*cose.UntaggedSign1Message)(ra))
@@ -55,7 +40,7 @@ func (ra *ReaderAuth) Verify(
 		return err
 	}
 
-	readerAuthCertificate, err := x500VerifyChain(
+	readerAuthCertificate, err := mdocX509.VerifyChain(
 		rootCertificates,
 		chain,
 		now,

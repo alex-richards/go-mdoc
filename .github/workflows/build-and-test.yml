@@ -11,6 +11,7 @@ jobs:
   build:
     name: "Build & Test"
     runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@v4
 
@@ -22,11 +23,5 @@ jobs:
     - name: Build
       run: go build
 
-    #- name: Build
-    #  run: go build -tags mdoc_tinycbor
-
     - name: Test
-      run: go test
-
-    #- name: Test
-    #  run: go test -tags mdoc_tinycbor
+      run: go test ./... --coverprofile=cover.out

@@ -1,4 +1,4 @@
-package mdoc
+package issuer
 
 import (
 	"crypto"
@@ -7,25 +7,27 @@ import (
 	"crypto/elliptic"
 	"crypto/x509"
 	"fmt"
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"math/big"
 	"testing"
 	"time"
 )
 
 func Test_Certificates(t *testing.T) {
-	rand := NewDeterministicRand()
+	rand := testutil.NewDeterministicRand(t)
 
-	iacaCurves := []Curve{
-		CurveP256,
-		CurveP384,
-		CurveP521,
+	iacaCurves := []mdoc.Curve{
+		mdoc.CurveP256,
+		mdoc.CurveP384,
+		mdoc.CurveP521,
 	}
 
-	documentSignerCurves := []Curve{
-		CurveP256,
-		CurveP384,
-		CurveP521,
-		CurveEd25519,
+	documentSignerCurves := []mdoc.Curve{
+		mdoc.CurveP256,
+		mdoc.CurveP384,
+		mdoc.CurveP521,
+		mdoc.CurveEd25519,
 	}
 
 	for _, iacaCurve := range iacaCurves {
@@ -35,19 +37,19 @@ func Test_Certificates(t *testing.T) {
 				var iacaPrivate crypto.Signer
 				var iacaPublic crypto.PublicKey
 				switch iacaCurve {
-				case CurveP256:
+				case mdoc.CurveP256:
 					iacaPrivate, err = ecdsa.GenerateKey(elliptic.P256(), rand)
 					iacaPublic = iacaPrivate.Public()
 					if err != nil {
 						t.Fatal(err)
 					}
-				case CurveP384:
+				case mdoc.CurveP384:
 					iacaPrivate, err = ecdsa.GenerateKey(elliptic.P384(), rand)
 					iacaPublic = iacaPrivate.Public()
 					if err != nil {
 						t.Fatal(err)
 					}
-				case CurveP521:
+				case mdoc.CurveP521:
 					iacaPrivate, err = ecdsa.GenerateKey(elliptic.P521(), rand)
 					iacaPublic = iacaPrivate.Public()
 					if err != nil {
@@ -77,7 +79,7 @@ func Test_Certificates(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				err = ValidateIACACertificate(cert)
+				err = mdoc.ValidateIACACertificate(cert)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -85,25 +87,25 @@ func Test_Certificates(t *testing.T) {
 				var dsPrivate crypto.Signer
 				var dsPublic crypto.PublicKey
 				switch iacaCurve {
-				case CurveP256:
+				case mdoc.CurveP256:
 					dsPrivate, err = ecdsa.GenerateKey(elliptic.P256(), rand)
 					dsPublic = iacaPrivate.Public()
 					if err != nil {
 						t.Fatal(err)
 					}
-				case CurveP384:
+				case mdoc.CurveP384:
 					dsPrivate, err = ecdsa.GenerateKey(elliptic.P384(), rand)
 					dsPublic = iacaPrivate.Public()
 					if err != nil {
 						t.Fatal(err)
 					}
-				case CurveP521:
+				case mdoc.CurveP521:
 					dsPrivate, err = ecdsa.GenerateKey(elliptic.P224(), rand)
 					dsPublic = iacaPrivate.Public()
 					if err != nil {
 						t.Fatal(err)
 					}
-				case CurveEd25519:
+				case mdoc.CurveEd25519:
 					dsPublic, dsPrivate, err = ed25519.GenerateKey(rand)
 				default:
 					t.Fatal("Unknown Curve")
@@ -130,7 +132,7 @@ func Test_Certificates(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				err = ValidateDocumentSignerCertificate(certDS, cert)
+				err = mdoc.ValidateDocumentSignerCertificate(certDS, cert)
 				if err != nil {
 					t.Fatal(err)
 				}

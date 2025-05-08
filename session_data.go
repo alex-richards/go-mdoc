@@ -9,7 +9,7 @@ type SessionEstablishment struct {
 	Data            []byte            `cbor:"data"`
 }
 
-func NewSessionEstablishment(eReaderKey *DeviceKey, data []byte) (*SessionEstablishment, error) {
+func NewSessionEstablishment(eReaderKey *PublicKey, data []byte) (*SessionEstablishment, error) {
 	eReaderKeyBytes, err := MarshalToNewTaggedEncodedCBOR(eReaderKey)
 	if err != nil {
 		return nil, err
@@ -21,8 +21,8 @@ func NewSessionEstablishment(eReaderKey *DeviceKey, data []byte) (*SessionEstabl
 	}, nil
 }
 
-func (se *SessionEstablishment) EReaderKey() (*DeviceKey, error) {
-	eReaderKey := new(DeviceKey)
+func (se *SessionEstablishment) EReaderKey() (*PublicKey, error) {
+	eReaderKey := new(PublicKey)
 	if err := cbor.Unmarshal(se.EReaderKeyBytes.UntaggedValue, eReaderKey); err != nil {
 		return nil, err
 	}
