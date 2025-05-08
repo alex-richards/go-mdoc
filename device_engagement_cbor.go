@@ -2,7 +2,9 @@
 
 package mdoc
 
-import "github.com/fxamacker/cbor/v2"
+import (
+	"github.com/fxamacker/cbor/v2"
+)
 
 type intermediateDeviceRetrievalMethod struct {
 	_                struct{} `cbor:",toarray"`
@@ -11,8 +13,8 @@ type intermediateDeviceRetrievalMethod struct {
 	RetrievalOptions cbor.RawMessage
 }
 
-func (de *DeviceEngagement) EDeviceKey() (*DeviceKey, error) {
-	eDeviceKey := new(DeviceKey)
+func (de *DeviceEngagement) EDeviceKey() (*PublicKey, error) {
+	eDeviceKey := new(PublicKey)
 	if err := cbor.Unmarshal(de.Security.EDeviceKeyBytes.UntaggedValue, eDeviceKey); err != nil {
 		return nil, err
 	}

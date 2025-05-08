@@ -2,13 +2,14 @@ package mdoc
 
 import (
 	"bytes"
+	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"testing"
 )
 
 func Test_SK_Equality(t *testing.T) {
-	rand := NewDeterministicRand()
+	rand := testutil.NewDeterministicRand(t)
 
-	eReaderKeyPrivate, err := NewEDeviceKey(rand, CurveP256)
+	eReaderKeyPrivate, err := mdoc.NewEDeviceKey(rand, mdoc.CurveP256)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -17,7 +18,7 @@ func Test_SK_Equality(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	eDeviceKeyPrivate, err := NewEDeviceKey(rand, CurveP256)
+	eDeviceKeyPrivate, err := mdoc.NewEDeviceKey(rand, mdoc.CurveP256)
 	if err != nil {
 		t.Fatal(err)
 	}

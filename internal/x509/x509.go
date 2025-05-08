@@ -1,4 +1,4 @@
-package mdoc
+package x509
 
 import (
 	"bytes"
@@ -8,10 +8,12 @@ import (
 )
 
 var (
+	ErrNoRootCertificates = errors.New("mdoc: x509: no root certificates")
+	ErrEmptyChain         = errors.New("mdoc: x509: empty chain")
 	ErrInvalidCertificate = errors.New("mdoc: x500: invalid certificate")
 )
 
-func x500VerifyChain(
+func VerifyChain(
 	rootCertificates []*x509.Certificate,
 	chain []*x509.Certificate,
 	now time.Time,
@@ -35,7 +37,7 @@ func x500VerifyChain(
 	{
 		firstCertificate := chain[0]
 		for _, candidateRootCertificate := range rootCertificates {
-			if err = x500VerifyCertificateSignature(firstCertificate, candidateRootCertificate); err == nil {
+			if err = VerifyCertificateSignature(firstCertificate, candidateRootCertificate); err == nil {
 				rootCertificate = candidateRootCertificate
 				break
 			}
@@ -53,7 +55,7 @@ func x500VerifyChain(
 	// check chain signatures
 	previousCertificate := rootCertificate
 	for _, certificate := range chain {
-		if err = x500VerifyCertificateSignature(certificate, previousCertificate); err != nil {
+		if err = VerifyCertificateSignature(certificate, previousCertificate); err != nil {
 			return nil, err
 		}
 		previousCertificate = certificate
@@ -80,14 +82,14 @@ func x500VerifyChain(
 	}
 
 	// check leaf certificate is current
-	if err = x500VerifyCertificateValidity(leafCertificate, now); err != nil {
+	if err = VerifyCertificateValidity(leafCertificate, now); err != nil {
 		return nil, err
 	}
 
 	return leafCertificate, nil
 }
 
-func x500VerifyCertificateSignature(certificate *x509.Certificate, signer *x509.Certificate) error {
+func VerifyCertificateSignature(certificate *x509.Certificate, signer *x509.Certificate) error {
 	// issuer matches signer's subject
 	if !bytes.Equal(certificate.RawIssuer, signer.RawSubject) {
 		return ErrInvalidCertificate
@@ -109,7 +111,7 @@ func x500VerifyCertificateSignature(certificate *x509.Certificate, signer *x509.
 	return nil
 }
 
-func x500VerifyCertificateValidity(certificate *x509.Certificate, now time.Time) error {
+func VerifyCertificateValidity(certificate *x509.Certificate, now time.Time) error {
 	// cert currently valid
 	if now.After(certificate.NotAfter) {
 		return ErrInvalidCertificate

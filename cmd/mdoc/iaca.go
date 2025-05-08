@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/issuer"
 	cli "github.com/jawher/mow.cli"
 	"io"
 	"log"
@@ -123,7 +124,7 @@ func cmdIacaCreateAction(
 		log.Fatal(err)
 	}
 
-	iacaCertificateDER, err := mdoc.NewIACACertificate(
+	iacaCertificateDER, err := issuer.NewIACACertificate(
 		rand.Reader,
 		privateKey,
 		privateKey.Public(),

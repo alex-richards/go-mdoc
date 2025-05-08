@@ -7,7 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
-	"io"
+	mdocX509 "github.com/alex-richards/go-mdoc/internal/x509"
 	"reflect"
 	"time"
 
@@ -27,42 +27,15 @@ const (
 )
 
 const (
-	iacaMaxAgeYears          = 20
-	documentSignerMaxAgeDays = 457
+	IACAMaxAgeYears          = 20
+	DocumentSignerMaxAgeDays = 457
 )
 
 var (
-	documentSignerKeyUsage = asn1.ObjectIdentifier{1, 0, 18013, 5, 1, 2}
+	DocumentSignerKeyUsage = asn1.ObjectIdentifier{1, 0, 18013, 5, 1, 2}
 )
 
 type IssuerAuth cose.UntaggedSign1Message
-
-func NewIssuerAuth(
-	rand io.Reader,
-	issuerAuthority IssuerAuthority,
-	mobileSecurityObject *MobileSecurityObject,
-) (*IssuerAuth, error) {
-	mobileSecurityObjectBytes, err := MarshalToNewTaggedEncodedCBOR(mobileSecurityObject)
-	if err != nil {
-		return nil, err
-	}
-
-	issuerAuth := &IssuerAuth{
-		Headers: cose.Headers{
-			Unprotected: cose.UnprotectedHeader{
-				cose.HeaderLabelX5Chain: issuerAuthority.DocumentSignerCertificate().Raw,
-			},
-		},
-		Payload: mobileSecurityObjectBytes.TaggedValue,
-	}
-
-	err = coseSign(rand, issuerAuthority, (*cose.Sign1Message)(issuerAuth))
-	if err != nil {
-		return nil, err
-	}
-
-	return issuerAuth, nil
-}
 
 func (ia *IssuerAuth) MarshalCBOR() ([]byte, error) {
 	return cbor.Marshal((*cose.UntaggedSign1Message)(ia))
@@ -77,7 +50,7 @@ func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time
 		return err
 	}
 
-	issuerAuthCertificate, err := x500VerifyChain(
+	issuerAuthCertificate, err := mdocX509.VerifyChain(
 		rootCertificates,
 		chain,
 		now,
@@ -132,7 +105,7 @@ func ValidateIACACertificate(iacaCertificate *x509.Certificate) error {
 	}
 
 	{
-		maxNotAfter := iacaCertificate.NotBefore.AddDate(iacaMaxAgeYears, 0, 0)
+		maxNotAfter := iacaCertificate.NotBefore.AddDate(IACAMaxAgeYears, 0, 0)
 		if iacaCertificate.NotAfter.Compare(maxNotAfter) > 0 {
 			return ErrInvalidIACARootCertificate
 		}
@@ -178,7 +151,7 @@ func ValidateDocumentSignerCertificate(documentSignerCertificate *x509.Certifica
 	}
 
 	{
-		maxNotAfter := documentSignerCertificate.NotBefore.AddDate(0, 0, documentSignerMaxAgeDays)
+		maxNotAfter := documentSignerCertificate.NotBefore.AddDate(0, 0, DocumentSignerMaxAgeDays)
 		if documentSignerCertificate.NotAfter.Compare(maxNotAfter) > 0 {
 			return ErrInvalidDocumentSignerCertificate
 		}
@@ -227,7 +200,7 @@ func ValidateDocumentSignerCertificate(documentSignerCertificate *x509.Certifica
 	if len(documentSignerCertificate.UnknownExtKeyUsage) != 1 {
 		return ErrInvalidDocumentSignerCertificate
 	}
-	if !documentSignerCertificate.UnknownExtKeyUsage[0].Equal(documentSignerKeyUsage) {
+	if !documentSignerCertificate.UnknownExtKeyUsage[0].Equal(DocumentSignerKeyUsage) {
 		return ErrInvalidDocumentSignerCertificate
 	}
 
@@ -266,62 +239,13 @@ type MobileSecurityObject struct {
 	ValidityInfo    ValidityInfo     `cbor:"validityInfo"`
 }
 
-func NewMobileSecurityObject(
-	docType DocType,
-	digestAlgorithm DigestAlgorithm,
-	nameSpaces IssuerNameSpaces,
-	deviceKey *DeviceKey,
-	validityInfo *ValidityInfo,
-	keyAuthorizations *KeyAuthorizations,
-	keyInfo *KeyInfo,
-) (*MobileSecurityObject, error) {
-	hash, err := digestAlgorithm.Hash()
-	if err != nil {
-		return nil, err
-	}
-
-	nameSpaceDigests := make(NameSpaceDigests, len(nameSpaces))
-	for nameSpace, issuerSignedItemBytess := range nameSpaces {
-		valueDigests := make(ValueDigests, len(issuerSignedItemBytess))
-		nameSpaceDigests[nameSpace] = valueDigests
-		for _, issuerSignedItemBytes := range issuerSignedItemBytess {
-			issuerSignedItem, err := issuerSignedItemBytes.IssuerSignedItem()
-			if err != nil {
-				return nil, err
-			}
-
-			hash.Reset()
-			hash.Write(issuerSignedItemBytes.TaggedValue)
-			h := hash.Sum(nil)
-			_, exists := valueDigests[issuerSignedItem.DigestID]
-			if exists {
-				return nil, ErrDuplicateDigestID
-			}
-			valueDigests[issuerSignedItem.DigestID] = h
-		}
-	}
-
-	return &MobileSecurityObject{
-		Version:         MobileSecurityObjectVersion,
-		DigestAlgorithm: digestAlgorithm,
-		ValueDigests:    nameSpaceDigests,
-		DeviceKeyInfo: DeviceKeyInfo{
-			DeviceKey:         *deviceKey,
-			KeyAuthorizations: keyAuthorizations,
-			KeyInfo:           keyInfo,
-		},
-		DocType:      docType,
-		ValidityInfo: *validityInfo,
-	}, nil
-}
-
 type NameSpaceDigests map[NameSpace]ValueDigests
 type ValueDigests map[DigestID]Digest
 type DigestID uint
 type Digest []byte
 
 type DeviceKeyInfo struct {
-	DeviceKey         DeviceKey          `cbor:"deviceKey"`
+	DeviceKey         PublicKey          `cbor:"deviceKey"`
 	KeyAuthorizations *KeyAuthorizations `cbor:"keyAuthorizations,omitempty"`
 	KeyInfo           *KeyInfo           `cbor:"keyInfo,omitEmpty"`
 }

@@ -31,109 +31,6 @@ const (
 	StatusCodeCBORValidationError StatusCode = 12
 )
 
-func CreateDeviceResponse(
-	deviceRequest *DeviceRequest,
-	candidateIssuerSigneds map[DocType]IssuerSigned,
-	candidateDeviceSigneds map[DocType]map[NameSpace]map[DataElementIdentifier]any,
-	rand io.Reader,
-	privateSDeviceKey PrivateSDeviceKey,
-	sessionTranscript *SessionTranscript,
-) (*DeviceResponse, error) {
-	documents := make([]Document, 0)
-	documentErrors := make([]DocumentError, 0)
-
-	for _, docRequest := range deviceRequest.DocRequests {
-		itemsRequest, err := docRequest.ItemsRequest()
-		if err != nil {
-			return nil, err
-		}
-
-		candidateIssuerSigned, ok := candidateIssuerSigneds[itemsRequest.DocType]
-		if !ok {
-			documentErrors = append(documentErrors, DocumentError{
-				itemsRequest.DocType: ErrorCodeDataNotReturned,
-			})
-			continue
-		}
-
-		requestNameSpaces := itemsRequest.NameSpaces
-		documentIssuerNameSpaces, err := candidateIssuerSigned.NameSpaces.Filter(requestNameSpaces.Contains)
-		if err != nil {
-			return nil, err
-		}
-
-		documentIssuerSignedItems, err := documentIssuerNameSpaces.IssuerSignedItems()
-		if err != nil {
-			return nil, err
-		}
-		requestNameSpaces = itemsRequest.NameSpaces.Filter(documentIssuerSignedItems.Contains)
-
-		documentDeviceNameSpaces := make(DeviceNameSpaces)
-		if len(candidateDeviceSigneds) > 0 && len(requestNameSpaces) > 0 {
-			mobileSecurityObject, err := candidateIssuerSigned.IssuerAuth.MobileSecurityObject()
-			if err != nil {
-				return nil, err
-			}
-
-			keyAuthorizations := mobileSecurityObject.DeviceKeyInfo.KeyAuthorizations
-			if keyAuthorizations != nil {
-				authorizedDeviceNameSpaces := requestNameSpaces.Filter(keyAuthorizations.Contains)
-				candidateDeviceSignedItems := candidateDeviceSigneds[itemsRequest.DocType]
-				for authorizedDeviceNameSpace, authorizedDeviceDataElements := range authorizedDeviceNameSpaces {
-					candidateDeviceNameSpace := candidateDeviceSignedItems[authorizedDeviceNameSpace]
-					for authorizedDeviceDataElementIdentifier := range authorizedDeviceDataElements {
-						candidateDeviceSignedItem, ok := candidateDeviceNameSpace[authorizedDeviceDataElementIdentifier]
-						if ok {
-							documentDeviceSignedItems, ok := documentDeviceNameSpaces[authorizedDeviceNameSpace]
-							if !ok {
-								documentDeviceSignedItems = make(DeviceSignedItems)
-								documentDeviceNameSpaces[authorizedDeviceNameSpace] = documentDeviceSignedItems
-							}
-							documentDeviceSignedItems[authorizedDeviceDataElementIdentifier] = candidateDeviceSignedItem
-						}
-					}
-				}
-			}
-		}
-
-		requestNameSpaces = requestNameSpaces.Filter(documentDeviceNameSpaces.Contains)
-		var documentErrors *Errors
-		if len(requestNameSpaces) > 0 {
-			*documentErrors = make(Errors)
-			for nameSpace, dataElements := range requestNameSpaces {
-				(*documentErrors)[nameSpace] = make(ErrorItems)
-				for dataElement, _ := range dataElements {
-					(*documentErrors)[nameSpace][dataElement] = ErrorCodeDataNotReturned
-				}
-			}
-		}
-
-		documentDeviceSigned, err := NewDeviceSigned(itemsRequest.DocType, documentDeviceNameSpaces, rand, privateSDeviceKey, sessionTranscript)
-		if err != nil {
-			return nil, err
-		}
-
-		documents = append(
-			documents,
-			Document{
-				DocType: itemsRequest.DocType,
-				IssuerSigned: IssuerSigned{
-					NameSpaces: documentIssuerNameSpaces,
-					IssuerAuth: candidateIssuerSigned.IssuerAuth,
-				},
-				DeviceSigned: *documentDeviceSigned,
-				Errors:       documentErrors,
-			},
-		)
-	}
-
-	return NewDeviceResponse(
-		documents,
-		documentErrors,
-		StatusCodeOK,
-	), nil
-}
-
 func NewDeviceResponse(
 	documents []Document,
 	documentErrors []DocumentError,
@@ -331,36 +228,8 @@ type DeviceSigned struct {
 	DeviceAuth      DeviceAuth        `cbor:"deviceAuth"`
 }
 
-func NewDeviceSigned(
-	docType DocType,
-	nameSpaces DeviceNameSpaces,
-	rand io.Reader,
-	privateSDeviceKey PrivateSDeviceKey,
-	sessionTranscript *SessionTranscript,
-) (*DeviceSigned, error) {
-	nameSpacesBytes, err := MarshalToNewTaggedEncodedCBOR(nameSpaces)
-	if err != nil {
-		return nil, err
-	}
-
-	deviceAuthenticationBytes, err := NewDeviceAuthenticationBytes(sessionTranscript, docType, nameSpacesBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	deviceAuth, err := NewDeviceAuth(rand, privateSDeviceKey, deviceAuthenticationBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return &DeviceSigned{
-		NameSpacesBytes: *nameSpacesBytes,
-		DeviceAuth:      *deviceAuth,
-	}, nil
-}
-
 func (ds *DeviceSigned) Verify(
-	deviceKey *DeviceKey,
+	deviceKey *PublicKey,
 	deviceAuthenticationBytes *TaggedEncodedCBOR,
 	mobileSecurityObject *MobileSecurityObject,
 ) error {

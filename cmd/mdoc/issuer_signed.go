@@ -5,6 +5,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/cipher_suite/ecdsa"
+	"github.com/alex-richards/go-mdoc/holder"
+	"github.com/alex-richards/go-mdoc/issuer"
 	"github.com/fxamacker/cbor/v2"
 	cli "github.com/jawher/mow.cli"
 	"github.com/veraison/go-cose"
@@ -40,7 +43,7 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 	cmd.VarArg("OUT", &out, "")
 
 	cmd.Action = func() {
-		var issuerAuthority mdoc.IssuerAuthority
+		var issuerAuthority issuer.IssuerAuthority
 		{
 			reader, err := documentSignerPrivateKey.Open()
 			if err != nil {
@@ -64,10 +67,10 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 				log.Fatal(err)
 			}
 
-			issuerAuthority, err = mdoc.NewIssuerAuthority(signer, certificate)
+			issuerAuthority, err = ecdsa.NewIssuerAuthority(signer, certificate)
 		}
 
-		var sdf mdoc.DeviceKey
+		var sdf mdoc.PublicKey
 		{
 			reader, err := deviceKey.Open()
 			if err != nil {
@@ -142,7 +145,7 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 		}
 
 		now := time.Now()
-		deviceKey := &mdoc.DeviceKey{
+		deviceKey := &mdoc.PublicKey{
 			Type:      cose.KeyTypeEC2,
 			Algorithm: 0,
 			Params: map[any]any{
@@ -152,7 +155,7 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 			},
 		}
 
-		mobileSecurityObject, err := mdoc.NewMobileSecurityObject(
+		mobileSecurityObject, err := issuer.NewMobileSecurityObject(
 			(mdoc.DocType)(*docType),
 			mdoc.DigestAlgorithmSHA256,
 			issuerSigned.NameSpaces,
@@ -166,7 +169,7 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 			nil,
 		)
 
-		issuerAuth, err := mdoc.NewIssuerAuth(
+		issuerAuth, err := issuer.NewIssuerAuth(
 			rand.Reader,
 			issuerAuthority,
 			mobileSecurityObject,

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
-	"io"
 )
 
 var (
@@ -19,44 +18,8 @@ type DeviceAuth struct {
 	DeviceMAC       *DeviceMAC       `cbor:",omitempty"`
 }
 
-func NewDeviceAuth(
-	rand io.Reader,
-	privateSDeviceKey PrivateSDeviceKey,
-	deviceAuthenticationBytes *TaggedEncodedCBOR,
-) (*DeviceAuth, error) {
-	switch privateSDeviceKey.Mode() {
-	case SDeviceKeyModeSign:
-		return newSignedDeviceAuth(rand, privateSDeviceKey, deviceAuthenticationBytes)
-
-	case SDeviceKeyModeMAC:
-		return newTaggedDeviceAuth()
-
-	default:
-		panic("invalid privateSDeviceKey mode")
-	}
-}
-
-func newSignedDeviceAuth(
-	rand io.Reader,
-	signer Signer,
-	deviceAuthenticationBytes *TaggedEncodedCBOR,
-) (*DeviceAuth, error) {
-	deviceAuth := &DeviceAuth{DeviceSignature: &DeviceSignature{}}
-
-	err := coseSignDetached(rand, signer, (*cose.Sign1Message)(deviceAuth.DeviceSignature), deviceAuthenticationBytes.TaggedValue)
-	if err != nil {
-		return nil, err
-	}
-
-	return deviceAuth, nil
-}
-
-func newTaggedDeviceAuth() (*DeviceAuth, error) {
-	return nil, ErrMACAuthNotSupported
-}
-
 func (da *DeviceAuth) Verify(
-	deviceKey *DeviceKey,
+	deviceKey *PublicKey,
 	deviceAuthenticationBytes *TaggedEncodedCBOR,
 ) error {
 	switch {
@@ -75,7 +38,7 @@ func (da *DeviceAuth) Verify(
 }
 
 func verifyDeviceSignature(
-	deviceKey *DeviceKey,
+	deviceKey *PublicKey,
 	deviceSignature *DeviceSignature,
 	deviceAuthenticationBytes *TaggedEncodedCBOR,
 ) error {

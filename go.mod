@@ -5,13 +5,17 @@ go 1.23.0
 toolchain go1.23.5
 
 require (
+	github.com/cloudflare/circl v1.6.1
 	github.com/fxamacker/cbor/v2 v2.7.0
 	github.com/jawher/mow.cli v1.2.0
 	github.com/veraison/go-cose v1.3.0
 	golang.org/x/crypto v0.36.0
 )
 
-require github.com/x448/float16 v0.8.4 // indirect
+require (
+	github.com/x448/float16 v0.8.4 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+)
 
 require github.com/google/go-cmp v0.7.0 // test
 

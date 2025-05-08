@@ -17,17 +17,17 @@ const (
 	skDeviceInfo   = "SKDevice"
 )
 
-var readerIdentifier = [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
-var deviceIdentifier = [8]byte{0, 0, 0, 0, 0, 0, 0, 1}
+var ReaderIdentifier = [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
+var DeviceIdentifier = [8]byte{0, 0, 0, 0, 0, 0, 0, 1}
 
 func SKReader(
-	privateEDeviceKey PrivateEDeviceKey,
-	deviceKey *DeviceKey,
+	agreer Agreer,
+	ephemeralKey *PublicKey,
 	sessionTranscriptBytes []byte,
 ) ([]byte, error) {
 	return sk(
-		privateEDeviceKey,
-		deviceKey,
+		agreer,
+		ephemeralKey,
 		sessionTranscriptBytes,
 		skReaderInfo,
 		skReaderLength,
@@ -35,13 +35,13 @@ func SKReader(
 }
 
 func SKDevice(
-	privateEDeviceKey PrivateEDeviceKey,
-	deviceKey *DeviceKey,
+	agreer Agreer,
+	ephemeralKey *PublicKey,
 	sessionTranscriptBytes []byte,
 ) ([]byte, error) {
 	return sk(
-		privateEDeviceKey,
-		deviceKey,
+		agreer,
+		ephemeralKey,
 		sessionTranscriptBytes,
 		skDeviceInfo,
 		skDeviceLength,
@@ -49,13 +49,13 @@ func SKDevice(
 }
 
 func sk(
-	privateEDeviceKey PrivateEDeviceKey,
-	deviceKey *DeviceKey,
+	agreer Agreer,
+	deviceKey *PublicKey,
 	sessionTranscriptBytes []byte,
 	info string,
 	length int,
 ) ([]byte, error) {
-	sharedSecret, err := privateEDeviceKey.Agree(deviceKey)
+	sharedSecret, err := agreer.Agree(deviceKey)
 	if err != nil {
 		return nil, err
 	}
@@ -91,31 +91,7 @@ type SessionEncryption struct {
 	decryptionCounter    uint32
 }
 
-func NewReaderSessionEncryption(
-	skReader []byte,
-	skDevice []byte,
-) (*SessionEncryption, error) {
-	return newSessionEncryption(
-		skReader,
-		readerIdentifier,
-		skDevice,
-		deviceIdentifier,
-	)
-}
-
-func NewDeviceSessionEncryption(
-	skDevice []byte,
-	skReader []byte,
-) (*SessionEncryption, error) {
-	return newSessionEncryption(
-		skDevice,
-		deviceIdentifier,
-		skReader,
-		readerIdentifier,
-	)
-}
-
-func newSessionEncryption(
+func NewSessionEncryption(
 	encryptionSK []byte,
 	encryptionIdentifier [8]byte,
 	decryptionSK []byte,

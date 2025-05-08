@@ -1,6 +1,7 @@
 package mdoc
 
 import (
+	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"reflect"
 	"testing"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func Test_NewSessionEstablishment(t *testing.T) {
-	deviceKeyPrivate, err := NewEDeviceKey(NewDeterministicRand(), CurveP256)
+	deviceKeyPrivate, err := NewEDeviceKey(testutil.NewDeterministicRand(t), CurveP256)
 	if err != nil {
 		t.Fatal(err)
 	}

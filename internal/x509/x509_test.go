@@ -1,22 +1,19 @@
-package mdoc
+package x509
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
-	"fmt"
-	"io"
+	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"math/big"
 	"testing"
 	"time"
 )
 
-func Test_x500VerifyChain(t *testing.T) {
-	rand := NewDeterministicRand()
+func Test_VerifyChain(t *testing.T) {
+	rand := testutil.NewDeterministicRand(t)
 
-	root1 := createCA(
+	root1 := testutil.CreateCA(
 		t,
 		rand,
 		x509.Certificate{
@@ -26,7 +23,7 @@ func Test_x500VerifyChain(t *testing.T) {
 			NotAfter:  time.UnixMilli(2000),
 		},
 	)
-	root2 := createCA(
+	root2 := testutil.CreateCA(
 		t,
 		rand,
 		x509.Certificate{
@@ -38,7 +35,7 @@ func Test_x500VerifyChain(t *testing.T) {
 		},
 	)
 
-	roots := []*x509.Certificate{root1.cert, root2.cert}
+	roots := []*x509.Certificate{root1.Cert, root2.Cert}
 
 	tests := []struct {
 		name                   string
@@ -54,46 +51,46 @@ func Test_x500VerifyChain(t *testing.T) {
 		{
 			name:  "single cert",
 			roots: roots,
-			chain: createChain(t, rand, root1, 1),
+			chain: testutil.CreateChain(t, rand, root1, 1),
 			now:   time.UnixMilli(1500),
 		},
 		{
 			name:  "2 cert chain",
 			roots: roots,
-			chain: createChain(t, rand, root1, 2),
+			chain: testutil.CreateChain(t, rand, root1, 2),
 			now:   time.UnixMilli(1500),
 		},
 		{
 			name:  "3 cert chain",
 			roots: roots,
-			chain: createChain(t, rand, root1, 3),
+			chain: testutil.CreateChain(t, rand, root1, 3),
 			now:   time.UnixMilli(1500),
 		},
 		{
 			name:    "expired",
 			roots:   roots,
-			chain:   createChain(t, rand, root1, 1),
+			chain:   testutil.CreateChain(t, rand, root1, 1),
 			now:     time.UnixMilli(500),
 			wantErr: ErrInvalidCertificate,
 		},
 		{
 			name:    "not yet valid",
 			roots:   roots,
-			chain:   createChain(t, rand, root1, 1),
+			chain:   testutil.CreateChain(t, rand, root1, 1),
 			now:     time.UnixMilli(2500),
 			wantErr: ErrInvalidCertificate,
 		},
 		{
 			name:    "unrooted chain",
-			roots:   []*x509.Certificate{root2.cert},
-			chain:   createChain(t, rand, root1, 1),
+			roots:   []*x509.Certificate{root2.Cert},
+			chain:   testutil.CreateChain(t, rand, root1, 1),
 			now:     time.UnixMilli(2500),
 			wantErr: ErrInvalidCertificate,
 		},
 		{
 			name:  "broken chain",
 			roots: roots,
-			chain: createChain(t, rand, root1, 3),
+			chain: testutil.CreateChain(t, rand, root1, 3),
 			tinker: func(chain []*x509.Certificate) []*x509.Certificate {
 				out := make([]*x509.Certificate, 0, len(chain)-1)
 				out = append(out, chain[0:1]...)
@@ -140,7 +137,7 @@ func Test_x500VerifyChain(t *testing.T) {
 			intermediateChecks := max(0, len(chain)-1)
 			leafChecks := 1
 
-			leafCertificate, err := x500VerifyChain(
+			leafCertificate, err := VerifyChain(
 				tt.roots,
 				chain,
 				tt.now,
@@ -183,103 +180,4 @@ func Test_x500VerifyChain(t *testing.T) {
 			}
 		})
 	}
-}
-
-type ChainEntry struct {
-	cert *x509.Certificate
-	key  *ecdsa.PrivateKey
-}
-
-func createCA(t *testing.T, rand io.Reader, template x509.Certificate) *ChainEntry {
-	t.Helper()
-
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	template.Version = 3
-	template.SerialNumber = big.NewInt(1)
-	template.Issuer = template.Subject
-	template.NotBefore = time.UnixMilli(1000)
-	template.NotAfter = time.UnixMilli(2000)
-	template.BasicConstraintsValid = true
-	template.IsCA = true
-
-	der, err := x509.CreateCertificate(
-		rand,
-		&template,
-		&template,
-		key.Public(),
-		key,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cert, err := x509.ParseCertificate(der)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return &ChainEntry{
-		cert,
-		key,
-	}
-}
-
-func createChain(t *testing.T, rand io.Reader, ca *ChainEntry, len int) []*x509.Certificate {
-	t.Helper()
-
-	if ca == nil {
-		t.Fatal()
-	}
-
-	previous := ca
-	chain := make([]*x509.Certificate, 0, len)
-	for i := 0; i < len; i++ {
-		key, err := ecdsa.GenerateKey(elliptic.P256(), rand)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		template := &x509.Certificate{
-			Version:               3,
-			SerialNumber:          big.NewInt(1),
-			Subject:               pkix.Name{CommonName: fmt.Sprintf("cert %d", i)},
-			Issuer:                previous.cert.Subject,
-			NotBefore:             time.UnixMilli(1000),
-			NotAfter:              time.UnixMilli(2000),
-			BasicConstraintsValid: true,
-		}
-
-		if i < len-1 {
-			template.IsCA = true
-			template.KeyUsage = x509.KeyUsageCertSign
-		}
-
-		der, err := x509.CreateCertificate(
-			rand,
-			template,
-			previous.cert,
-			key.Public(),
-			previous.key,
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		cert, err := x509.ParseCertificate(der)
-		if err != nil {
-			t.Fatal(err)
-		}
-		chain = append(chain, cert)
-
-		previous = &ChainEntry{
-			cert,
-			key,
-		}
-	}
-
-	return chain
 }

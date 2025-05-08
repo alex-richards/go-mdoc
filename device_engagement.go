@@ -2,6 +2,7 @@ package mdoc
 
 import (
 	"errors"
+	"github.com/alex-richards/go-mdoc/util"
 )
 
 var (
@@ -21,8 +22,8 @@ type DeviceEngagement struct {
 }
 
 func NewDeviceEngagementBLE(
-	eDeviceKey *DeviceKey,
-	centralClientUUID, peripheralServerUUID *UUID,
+	eDeviceKey *PublicKey,
+	centralClientUUID, peripheralServerUUID *util.UUID,
 ) (*DeviceEngagement, error) {
 	eDeviceKeyBytes, err := MarshalToNewTaggedEncodedCBOR(eDeviceKey)
 	if err != nil {
@@ -88,8 +89,8 @@ type BLEAddress [6]byte
 type BLEOptions struct {
 	SupportsPeripheralServer      bool        `cbor:"0,keyasint"`
 	SupportsCentralClient         bool        `cbor:"1,keyasint"`
-	PeripheralServerUUID          *UUID       `cbor:"10,keyasint,omitempty"`
-	CentralClientUUID             *UUID       `cbor:"11,keyasint,omitempty"`
+	PeripheralServerUUID          *util.UUID  `cbor:"10,keyasint,omitempty"`
+	CentralClientUUID             *util.UUID  `cbor:"11,keyasint,omitempty"`
 	PeripheralServerDeviceAddress *BLEAddress `cbor:"20,keyasint,omitempty"`
 }
 

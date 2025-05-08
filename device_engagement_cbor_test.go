@@ -1,8 +1,7 @@
-//go:build !mdoc_tinycbor
-
 package mdoc
 
 import (
+	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
@@ -10,7 +9,10 @@ import (
 )
 
 func Test_DeviceRetrievalMethod_UnmarshalCBOR(t *testing.T) {
-	rand := deterministicRand{1, 2, 3, 4}
+	rand := testutil.NewDeterministicRand(t)
+
+	uuid := testutil.NewUUID(t, rand)
+
 	tests := []struct {
 		name    string
 		in      *DeviceRetrievalMethod
@@ -49,7 +51,7 @@ func Test_DeviceRetrievalMethod_UnmarshalCBOR(t *testing.T) {
 				RetrievalOptions: BLEOptions{
 					SupportsPeripheralServer:      true,
 					SupportsCentralClient:         false,
-					PeripheralServerUUID:          newUUID(t, rand),
+					PeripheralServerUUID:          uuid,
 					CentralClientUUID:             nil,
 					PeripheralServerDeviceAddress: nil,
 				},
@@ -60,7 +62,7 @@ func Test_DeviceRetrievalMethod_UnmarshalCBOR(t *testing.T) {
 				RetrievalOptions: BLEOptions{
 					SupportsPeripheralServer:      true,
 					SupportsCentralClient:         false,
-					PeripheralServerUUID:          newUUID(t, rand),
+					PeripheralServerUUID:          uuid,
 					CentralClientUUID:             nil,
 					PeripheralServerDeviceAddress: nil,
 				},
