@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/jawher/mow.cli"
 	"os"
+
+	"github.com/jawher/mow.cli"
 )
 
 func main() {

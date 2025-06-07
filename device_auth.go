@@ -2,6 +2,8 @@ package mdoc
 
 import (
 	"errors"
+
+	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
 )
@@ -20,7 +22,7 @@ type DeviceAuth struct {
 
 func (da *DeviceAuth) Verify(
 	deviceKey *PublicKey,
-	deviceAuthenticationBytes *TaggedEncodedCBOR,
+	deviceAuthenticationBytes *cbor2.TaggedEncodedCBOR,
 ) error {
 	switch {
 	case da.DeviceSignature != nil && da.DeviceMAC != nil:
@@ -40,18 +42,16 @@ func (da *DeviceAuth) Verify(
 func verifyDeviceSignature(
 	deviceKey *PublicKey,
 	deviceSignature *DeviceSignature,
-	deviceAuthenticationBytes *TaggedEncodedCBOR,
+	deviceAuthenticationBytes *cbor2.TaggedEncodedCBOR,
 ) error {
 	coseVerifier, err := (*cose.Key)(deviceKey).Verifier()
 	if err != nil {
 		return err
 	}
 
-	deviceSignature.Payload = deviceAuthenticationBytes.TaggedValue
-	err = (*cose.Sign1Message)(deviceSignature).Verify([]byte{}, coseVerifier)
-	deviceSignature.Payload = nil
-
-	return err
+	sign1 := (cose.Sign1Message)(*deviceSignature)
+	sign1.Payload = deviceAuthenticationBytes.TaggedValue
+	return sign1.Verify([]byte{}, coseVerifier)
 }
 
 type DeviceSignature cose.UntaggedSign1Message
@@ -70,21 +70,21 @@ type DeviceAuthentication struct {
 	DeviceAuthentication string
 	SessionTranscript    SessionTranscript
 	DocType              DocType
-	DeviceNameSpaceBytes TaggedEncodedCBOR
+	DeviceNameSpaceBytes cbor2.TaggedEncodedCBOR
 }
 
 func NewDeviceAuthenticationBytes(
 	sessionTranscript *SessionTranscript,
 	docType DocType,
-	deviceNameSpaceBytes *TaggedEncodedCBOR,
-) (*TaggedEncodedCBOR, error) {
-	return MarshalToNewTaggedEncodedCBOR(NewDeviceAuthentication(sessionTranscript, docType, deviceNameSpaceBytes))
+	deviceNameSpaceBytes *cbor2.TaggedEncodedCBOR,
+) (*cbor2.TaggedEncodedCBOR, error) {
+	return cbor2.MarshalToNewTaggedEncodedCBOR(NewDeviceAuthentication(sessionTranscript, docType, deviceNameSpaceBytes))
 }
 
 func NewDeviceAuthentication(
 	sessionTranscript *SessionTranscript,
 	docType DocType,
-	deviceNameSpaceBytes *TaggedEncodedCBOR,
+	deviceNameSpaceBytes *cbor2.TaggedEncodedCBOR,
 ) *DeviceAuthentication {
 	return &DeviceAuthentication{
 		DeviceAuthentication: "DeviceAuthentication",

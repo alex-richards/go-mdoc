@@ -3,6 +3,8 @@ package mdoc
 import (
 	"bytes"
 	"errors"
+
+	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/fxamacker/cbor/v2"
 )
 
@@ -11,15 +13,15 @@ var (
 )
 
 type SessionTranscript struct {
-	DeviceEngagementBytes *TaggedEncodedCBOR
-	EReaderKeyBytes       *TaggedEncodedCBOR
+	DeviceEngagementBytes *mdoccbor.TaggedEncodedCBOR
+	EReaderKeyBytes       *mdoccbor.TaggedEncodedCBOR
 	Handover              Handover
 }
 
 type intermediateSessionTranscript struct {
 	_                     struct{} `cbor:",toarray"`
-	DeviceEngagementBytes *TaggedEncodedCBOR
-	EReaderKeyBytes       *TaggedEncodedCBOR
+	DeviceEngagementBytes *mdoccbor.TaggedEncodedCBOR
+	EReaderKeyBytes       *mdoccbor.TaggedEncodedCBOR
 	Handover              cbor.RawMessage
 }
 
@@ -87,10 +89,10 @@ type Handover any
 type QRHandover struct{}
 
 func (qrh *QRHandover) MarshalCBOR() ([]byte, error) {
-	return []byte{cborNull}, nil
+	return []byte{mdoccbor.Null}, nil
 }
 func (qrh *QRHandover) UnmarshalCBOR(data []byte) error {
-	if !bytes.Equal([]byte{cborNull}, data) {
+	if !bytes.Equal([]byte{mdoccbor.Null}, data) {
 		return errors.New("mdoc: not a qr handover")
 	}
 	return nil

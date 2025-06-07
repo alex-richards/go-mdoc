@@ -1,13 +1,14 @@
-package mdoc
+package cose
 
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"testing"
+	"time"
+
 	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"github.com/google/go-cmp/cmp"
 	"github.com/veraison/go-cose"
-	"testing"
-	"time"
 )
 
 func Test_coseX509Chain(t *testing.T) {
@@ -59,7 +60,7 @@ func Test_coseX509Chain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := coseX509Chain(tt.unprotectedHeaders)
+			got, err := X509Chain(tt.unprotectedHeaders)
 			if err != tt.wantErr {
 				t.Fatalf("Want err: %v, got: %v", tt.wantErr, err)
 			}

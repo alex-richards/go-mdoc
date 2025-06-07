@@ -2,11 +2,13 @@ package ecdh
 
 import (
 	"crypto/ecdh"
+	"errors"
+
 	"github.com/alex-richards/go-mdoc"
 	"github.com/veraison/go-cose"
 )
 
-func toMDocPublicKey(public *ecdh.PublicKey) (*mdoc.PublicKey, error) {
+func toPublicKey(public *ecdh.PublicKey) (*mdoc.PublicKey, error) {
 	typ := cose.KeyTypeReserved
 	alg := cose.AlgorithmReserved
 	curve := cose.CurveReserved
@@ -14,22 +16,22 @@ func toMDocPublicKey(public *ecdh.PublicKey) (*mdoc.PublicKey, error) {
 	switch public.Curve() {
 	case ecdh.P256():
 		typ = cose.KeyTypeEC2
-		alg = cose.AlgorithmES256
+		//alg = cose.AlgorithmES256
 		curve = cose.CurveP256
 	case ecdh.P384():
 		typ = cose.KeyTypeEC2
-		alg = cose.AlgorithmES384
+		//alg = cose.AlgorithmES384
 		curve = cose.CurveP384
 	case ecdh.P521():
 		typ = cose.KeyTypeEC2
-		alg = cose.AlgorithmES512
+		//alg = cose.AlgorithmES512
 		curve = cose.CurveP521
 	case ecdh.X25519():
 		typ = cose.KeyTypeOKP
-		alg = cose.AlgorithmReserved
+		//alg = cose.AlgorithmReserved
 		curve = cose.CurveX25519
 	default:
-		return nil, nil // TODO error
+		return nil, errors.New("TODO error")
 	}
 
 	bytes := public.Bytes()
@@ -39,11 +41,11 @@ func toMDocPublicKey(public *ecdh.PublicKey) (*mdoc.PublicKey, error) {
 		size := (len(bytes) - 1) / 2
 
 		if bytes[0] != 4 || size == 0 {
-			return nil, nil // TODO error
+			return nil, errors.New("TODO error") // TODO
 		}
 
 		x := make([]byte, size)
-		copy(x, bytes[1:size])
+		copy(x, bytes[1:size+1])
 
 		y := make([]byte, size)
 		copy(y, bytes[1+size:])
@@ -53,7 +55,7 @@ func toMDocPublicKey(public *ecdh.PublicKey) (*mdoc.PublicKey, error) {
 			cose.KeyLabelEC2X:     x,
 			cose.KeyLabelEC2Y:     y,
 		}
-	} else {
+	} else { // typ == cose.KeyTypeOKP
 		params = map[any]any{
 			cose.KeyLabelOKPCurve: curve,
 			cose.KeyLabelOKPX:     bytes,
@@ -67,7 +69,7 @@ func toMDocPublicKey(public *ecdh.PublicKey) (*mdoc.PublicKey, error) {
 	}, nil
 }
 
-func fromMDocPublicKey(key *mdoc.PublicKey) (*ecdh.PublicKey, error) {
+func fromPublicKey(key *mdoc.PublicKey) (*ecdh.PublicKey, error) {
 	switch key.Type {
 	case cose.KeyTypeEC2:
 		var curve ecdh.Curve
@@ -79,17 +81,17 @@ func fromMDocPublicKey(key *mdoc.PublicKey) (*ecdh.PublicKey, error) {
 		case cose.CurveP521:
 			curve = ecdh.P521()
 		default:
-			return nil, nil // TODO error
+			return nil, errors.New("TODO error")
 		}
 
 		x, ok := key.Params[cose.KeyLabelEC2X].([]byte)
 		if !ok {
-			return nil, nil // TODO error
+			return nil, errors.New("TODO error")
 		}
 
 		y, ok := key.Params[cose.KeyLabelEC2Y].([]byte)
 		if !ok {
-			return nil, nil // TODO error
+			return nil, errors.New("TODO error")
 		}
 
 		bytes := make([]byte, 1+len(x)+len(y))
@@ -101,17 +103,17 @@ func fromMDocPublicKey(key *mdoc.PublicKey) (*ecdh.PublicKey, error) {
 
 	case cose.KeyTypeOKP:
 		if key.Params[cose.KeyLabelOKPCurve] != cose.CurveX25519 {
-			return nil, nil // TODO error
+			return nil, errors.New("TODO error")
 		}
 
 		x, ok := key.Params[cose.KeyLabelOKPX].([]byte)
 		if !ok {
-			return nil, nil // TODO error
+			return nil, errors.New("TODO error")
 		}
 
 		return ecdh.X25519().NewPublicKey(x)
 
 	default:
-		return nil, nil // TODO error
+		return nil, errors.New("TODO error")
 	}
 }

@@ -1,26 +1,30 @@
 package holder
 
-import "github.com/alex-richards/go-mdoc"
+import (
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/internal/cbor"
+	"github.com/alex-richards/go-mdoc/session"
+)
 
 func NewSessionEncryption(
-	eDeviceKey PrivateEDeviceKey,
+	eDeviceKey *mdoc.PrivateKey,
 	eReaderKey *mdoc.PublicKey,
-	sessionTranscriptBytes *mdoc.TaggedEncodedCBOR,
-) (*mdoc.SessionEncryption, error) {
-	skDevice, err := mdoc.SKDevice(eDeviceKey.Agreer(), eReaderKey, sessionTranscriptBytes.TaggedValue)
+	sessionTranscriptBytes *cbor.TaggedEncodedCBOR,
+) (*session.SessionEncryption, error) {
+	skDevice, err := session.SKDevice(eDeviceKey.Agreer, eReaderKey, sessionTranscriptBytes.TaggedValue)
 	if err != nil {
 		return nil, err
 	}
 
-	skReader, err := mdoc.SKReader(eDeviceKey.Agreer(), eReaderKey, sessionTranscriptBytes.TaggedValue)
+	skReader, err := session.SKReader(eDeviceKey.Agreer, eReaderKey, sessionTranscriptBytes.TaggedValue)
 	if err != nil {
 		return nil, err
 	}
 
-	return mdoc.NewSessionEncryption(
+	return session.NewSessionEncryption(
 		skDevice,
-		mdoc.DeviceIdentifier,
+		session.DeviceIdentifier,
 		skReader,
-		mdoc.ReaderIdentifier,
+		session.ReaderIdentifier,
 	)
 }

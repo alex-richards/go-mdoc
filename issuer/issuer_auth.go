@@ -1,9 +1,11 @@
 package issuer
 
 import (
-	"github.com/alex-richards/go-mdoc"
-	"github.com/veraison/go-cose"
 	"io"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/internal/cbor"
+	"github.com/veraison/go-cose"
 )
 
 func NewIssuerAuth(
@@ -11,7 +13,7 @@ func NewIssuerAuth(
 	issuerAuthority IssuerAuthority,
 	mobileSecurityObject *mdoc.MobileSecurityObject,
 ) (*mdoc.IssuerAuth, error) {
-	mobileSecurityObjectBytes, err := mdoc.MarshalToNewTaggedEncodedCBOR(mobileSecurityObject)
+	mobileSecurityObjectBytes, err := cbor.MarshalToNewTaggedEncodedCBOR(mobileSecurityObject)
 	if err != nil {
 		return nil, err
 	}
@@ -19,13 +21,15 @@ func NewIssuerAuth(
 	issuerAuth := &mdoc.IssuerAuth{
 		Headers: cose.Headers{
 			Unprotected: cose.UnprotectedHeader{
-				cose.HeaderLabelX5Chain: issuerAuthority.DocumentSignerCertificate().Raw,
+				cose.HeaderLabelX5Chain: issuerAuthority.DocumentSignerCertificate.Raw,
 			},
 		},
 		Payload: mobileSecurityObjectBytes.TaggedValue,
 	}
 
-	err = mdoc.coseSign(rand, issuerAuthority.Signer(), (*cose.Sign1Message)(issuerAuth))
+	sign1 := (*cose.Sign1Message)(issuerAuth)
+
+	err = sign1.Sign(rand, []byte{}, mdoc.CoseSigner{issuerAuthority.Signer})
 	if err != nil {
 		return nil, err
 	}

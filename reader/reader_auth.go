@@ -1,8 +1,11 @@
 package reader
 
 import (
-	"github.com/alex-richards/go-mdoc"
 	"io"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/internal/cbor"
+	"github.com/veraison/go-cose"
 )
 
 func NewAuthenticatedDocRequest(
@@ -32,14 +35,18 @@ func NewAuthenticatedDocRequest(
 func NewReaderAuth(
 	rand io.Reader,
 	readerAuthority ReaderAuthority,
-	readerAuthenticationBytes *mdoc.TaggedEncodedCBOR,
+	readerAuthenticationBytes *cbor.TaggedEncodedCBOR,
 ) (*mdoc.ReaderAuth, error) {
 	readerAuth := new(mdoc.ReaderAuth)
 
-	err := mdoc.coseSignDetached(rand, readerAuthority.Signer(), readerAuth, readerAuthenticationBytes.TaggedValue)
+	sign1 := (cose.Sign1Message)(*readerAuth)
+	sign1.Payload = readerAuthenticationBytes.TaggedValue
+
+	err := sign1.Sign(rand, []byte{}, mdoc.CoseSigner{readerAuthority.Signer})
 	if err != nil {
 		return nil, err
 	}
 
+	readerAuth.Signature = sign1.Signature
 	return readerAuth, nil
 }

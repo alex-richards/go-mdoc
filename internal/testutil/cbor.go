@@ -1,9 +1,10 @@
 package testutil
 
 import (
+	"testing"
+
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/go-cmp/cmp"
-	"testing"
 )
 
 func ExpectCBOR(t testing.TB, expected, got []byte) {

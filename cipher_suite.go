@@ -2,7 +2,6 @@ package mdoc
 
 import (
 	"errors"
-	"io"
 )
 
 var (
@@ -61,14 +60,4 @@ func CurveFromName(name string) (Curve, error) {
 
 func (c Curve) Name() string {
 	return (string)(c)
-}
-
-type Signer interface {
-	Curve() Curve
-	Sign(rand io.Reader, data []byte) ([]byte, error)
-}
-
-type Agreer interface {
-	Curve() Curve
-	Agree(publicKey *PublicKey) ([]byte, error)
 }

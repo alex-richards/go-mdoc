@@ -3,11 +3,13 @@ package ecdsa
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"errors"
+
 	"github.com/alex-richards/go-mdoc"
 	"github.com/veraison/go-cose"
 )
 
-func toMDocPublicKey(key *ecdsa.PublicKey) (*mdoc.PublicKey, error) {
+func toPublicKey(key *ecdsa.PublicKey) (*mdoc.PublicKey, error) {
 	curve := cose.CurveReserved
 	alg := cose.AlgorithmReserved
 	switch key.Curve {
@@ -24,7 +26,7 @@ func toMDocPublicKey(key *ecdsa.PublicKey) (*mdoc.PublicKey, error) {
 		return nil, ErrUnsupportedCurve
 	}
 
-	size := (key.Params().BitSize) + 7/8
+	size := (key.Params().BitSize + 7) / 8
 
 	x := key.X.Bytes()
 	xLen := len(x)
@@ -33,7 +35,7 @@ func toMDocPublicKey(key *ecdsa.PublicKey) (*mdoc.PublicKey, error) {
 	yLen := len(y)
 
 	if xLen > size || yLen > size {
-		return nil, nil // TODO error
+		return nil, errors.New("TODO error") // TODO
 	}
 
 	coseX := make([]byte, size)
@@ -53,6 +55,6 @@ func toMDocPublicKey(key *ecdsa.PublicKey) (*mdoc.PublicKey, error) {
 	}, nil
 }
 
-func fromMDocPublicDeviceKey(key *mdoc.PublicKey) (*ecdsa.PublicKey, error) {
+func fromPublicDeviceKey(key *mdoc.PublicKey) (*ecdsa.PublicKey, error) {
 	panic("todo") // TOOD
 }

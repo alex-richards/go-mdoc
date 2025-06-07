@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	ErrInvalidUUID = errors.New("mdoc: invalid UUID")
+	ErrInvalidUUID = errors.New("mdoc: util: invalid UUID")
 )
 
 type UUID [128 / 8]byte
@@ -14,8 +14,11 @@ type UUID [128 / 8]byte
 func NewUUID(rand io.Reader) (*UUID, error) {
 	var uuid UUID
 	n, err := rand.Read(uuid[:])
-	if n != 128/8 {
+	if err != nil {
 		return nil, err
+	}
+	if n != 128/8 {
+		return nil, io.EOF
 	}
 	return &uuid, nil
 }

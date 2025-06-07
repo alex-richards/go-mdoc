@@ -1,16 +1,18 @@
-package mdoc
+package session
 
 import (
+	"github.com/alex-richards/go-mdoc"
+	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/fxamacker/cbor/v2"
 )
 
 type SessionEstablishment struct {
-	EReaderKeyBytes TaggedEncodedCBOR `cbor:"eReaderKey"`
-	Data            []byte            `cbor:"data"`
+	EReaderKeyBytes cbor2.TaggedEncodedCBOR `cbor:"eReaderKey"`
+	Data            []byte                  `cbor:"data"`
 }
 
-func NewSessionEstablishment(eReaderKey *PublicKey, data []byte) (*SessionEstablishment, error) {
-	eReaderKeyBytes, err := MarshalToNewTaggedEncodedCBOR(eReaderKey)
+func NewSessionEstablishment(eReaderKey *mdoc.PublicKey, data []byte) (*SessionEstablishment, error) {
+	eReaderKeyBytes, err := cbor2.MarshalToNewTaggedEncodedCBOR(eReaderKey)
 	if err != nil {
 		return nil, err
 	}
@@ -21,8 +23,8 @@ func NewSessionEstablishment(eReaderKey *PublicKey, data []byte) (*SessionEstabl
 	}, nil
 }
 
-func (se *SessionEstablishment) EReaderKey() (*PublicKey, error) {
-	eReaderKey := new(PublicKey)
+func (se *SessionEstablishment) EReaderKey() (*mdoc.PublicKey, error) {
+	eReaderKey := new(mdoc.PublicKey)
 	if err := cbor.Unmarshal(se.EReaderKeyBytes.UntaggedValue, eReaderKey); err != nil {
 		return nil, err
 	}

@@ -7,9 +7,12 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
-	mdocX509 "github.com/alex-richards/go-mdoc/internal/x509"
 	"reflect"
 	"time"
+
+	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
+	cose2 "github.com/alex-richards/go-mdoc/internal/cose"
+	mdocX509 "github.com/alex-richards/go-mdoc/internal/x509"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
@@ -45,7 +48,7 @@ func (ia *IssuerAuth) UnmarshalCBOR(data []byte) error {
 }
 
 func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time) error {
-	chain, err := coseX509Chain(ia.Headers.Unprotected)
+	chain, err := cose2.X509Chain(ia.Headers.Unprotected)
 	if err != nil {
 		return err
 	}
@@ -207,8 +210,8 @@ func ValidateDocumentSignerCertificate(documentSignerCertificate *x509.Certifica
 	return nil
 }
 
-func (ia *IssuerAuth) MobileSecurityObjectBytes() (*TaggedEncodedCBOR, error) {
-	mobileSecurityObjectBytes := new(TaggedEncodedCBOR)
+func (ia *IssuerAuth) MobileSecurityObjectBytes() (*cbor2.TaggedEncodedCBOR, error) {
+	mobileSecurityObjectBytes := new(cbor2.TaggedEncodedCBOR)
 	if err := cbor.Unmarshal(ia.Payload, mobileSecurityObjectBytes); err != nil {
 		return nil, err
 	}

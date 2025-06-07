@@ -1,16 +1,20 @@
-package mdoc
+package spec
 
 import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/x509"
-	"github.com/alex-richards/go-mdoc/internal/testutil"
-	"github.com/alex-richards/go-mdoc/issuer"
-	"github.com/veraison/go-cose"
 	"math/big"
 	"testing"
 	"time"
+
+	"github.com/alex-richards/go-mdoc"
+	mdocecdsa "github.com/alex-richards/go-mdoc/cipher_suite/ecdsa"
+	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
+	"github.com/alex-richards/go-mdoc/internal/testutil"
+	"github.com/alex-richards/go-mdoc/issuer"
+	"github.com/veraison/go-cose"
 
 	"github.com/fxamacker/cbor/v2"
 )
@@ -20,12 +24,7 @@ func Test_IssueMDoc(t *testing.T) {
 
 	now := time.UnixMilli(1500)
 
-	sDeviceKey, err := NewSDeviceKey(rand, CurveP256, SDeviceKeyModeSign)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sDeviceKeyPublic, err := sDeviceKey.DeviceKey()
+	sDeviceKey, err := mdocecdsa.GeneratePrivateKey(rand, mdoc.CurveP256)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,13 +40,13 @@ func Test_IssueMDoc(t *testing.T) {
 		},
 	}
 
-	nameSpaces := make(IssuerNameSpaces, len(items))
+	nameSpaces := make(mdoc.IssuerNameSpaces, len(items))
 
 	for nameSpace, dataElements := range items {
-		digestID := DigestID(0)
+		digestID := mdoc.DigestID(0)
 
-		issuerSignedItemBytess := make([]IssuerSignedItemBytes, len(dataElements))
-		nameSpaces[NameSpace(nameSpace)] = issuerSignedItemBytess
+		issuerSignedItemBytess := make([]mdoc.IssuerSignedItemBytes, len(dataElements))
+		nameSpaces[mdoc.NameSpace(nameSpace)] = issuerSignedItemBytess
 
 		for dataElementIdentifier, dataElementValue := range dataElements {
 			r := make([]byte, 16)
@@ -56,35 +55,35 @@ func Test_IssueMDoc(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			issuerSignedItem := IssuerSignedItem{
+			issuerSignedItem := mdoc.IssuerSignedItem{
 				DigestID:          digestID,
 				Random:            r,
-				ElementIdentifier: DataElementIdentifier(dataElementIdentifier),
+				ElementIdentifier: mdoc.DataElementIdentifier(dataElementIdentifier),
 				ElementValue:      dataElementValue,
 			}
 
-			issuerSignedItemBytes, err := MarshalToNewTaggedEncodedCBOR(issuerSignedItem)
+			issuerSignedItemBytes, err := mdoccbor.MarshalToNewTaggedEncodedCBOR(issuerSignedItem)
 			if err != nil {
 				t.Fatal(err)
 			}
-			issuerSignedItemBytess[digestID] = (IssuerSignedItemBytes)(*issuerSignedItemBytes)
+			issuerSignedItemBytess[digestID] = (mdoc.IssuerSignedItemBytes)(*issuerSignedItemBytes)
 
 			digestID++
 		}
 	}
 
-	digestAlgorithm := DigestAlgorithmSHA256
+	digestAlgorithm := mdoc.DigestAlgorithmSHA256
 	digest, err := digestAlgorithm.Hash()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	mobileSecurityObject, err := NewMobileSecurityObject(
+	mobileSecurityObject, err := issuer.NewMobileSecurityObject(
 		"docType1",
 		digestAlgorithm,
 		nameSpaces,
-		sDeviceKeyPublic,
-		&ValidityInfo{
+		&sDeviceKey.PublicKey,
+		&mdoc.ValidityInfo{
 			Signed:     time.UnixMilli(1000),
 			ValidFrom:  time.UnixMilli(1000),
 			ValidUntil: time.UnixMilli(2000),
@@ -127,6 +126,11 @@ func Test_IssueMDoc(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	documentSigner, err := mdocecdsa.NewPrivateKey(mdoc.CurveP256, documentSignerKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	documentSignerCertificateDer, err := issuer.NewDocumentSignerCertificate(
 		rand,
 		iacaKey, iacaCertificate,
@@ -146,21 +150,17 @@ func Test_IssueMDoc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	issuerAuthority := issuerAuthorityECDSA{
-		signerECDSA: signerECDSA{
-			key:             documentSignerKey,
-			curve:           CurveP256,
-			digestAlgorithm: DigestAlgorithmSHA256,
-		},
-		documentSignerCertificate: documentSignerCertificate,
+	issuerAuthority := issuer.IssuerAuthority{
+		Signer:                    documentSigner.Signer,
+		DocumentSignerCertificate: documentSignerCertificate,
 	}
 
-	issuerAuth, err := issuer.NewIssuerAuth(rand, &issuerAuthority, mobileSecurityObject)
+	issuerAuth, err := issuer.NewIssuerAuth(rand, issuerAuthority, mobileSecurityObject)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	issuerSigned := IssuerSigned{
+	issuerSigned := mdoc.IssuerSigned{
 		IssuerAuth: *issuerAuth,
 		NameSpaces: nameSpaces,
 	}
@@ -170,7 +170,7 @@ func Test_IssueMDoc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var decoded IssuerSigned
+	var decoded mdoc.IssuerSigned
 	err = cbor.Unmarshal(issuerSignedEncoded, &decoded)
 	if err != nil {
 		t.Fatal(err)

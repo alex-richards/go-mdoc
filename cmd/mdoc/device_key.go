@@ -2,11 +2,11 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/hex"
-	"github.com/alex-richards/go-mdoc"
-	"github.com/fxamacker/cbor/v2"
-	cli "github.com/jawher/mow.cli"
 	"log"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/cipher_suite"
+	"github.com/jawher/mow.cli"
 )
 
 func cmdDeviceKey(cmd *cli.Cmd) {
@@ -23,21 +23,17 @@ func cmdDeviceKeyCreate(cmd *cli.Cmd) {
 		value:      "-",
 		withStdout: true,
 	}
-	cmd.VarOpt(" ", &out, "")
+	cmd.VarOpt("", &out, "")
 
 	cmd.Action = func() {
 		curve := curveValue.Get()
 
-		deviceKey, err := mdoc.NewSDeviceKey(rand.Reader, curve, mdoc.SDeviceKeyModeSign)
+		deviceKey, err := cipher_suite.GeneratePrivateKey(rand.Reader, curve, true)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		encoded, err := cbor.Marshal(deviceKey)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		println(hex.EncodeToString(encoded))
+		_ = deviceKey
+		panic("TODO") // TODO
 	}
 }

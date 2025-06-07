@@ -1,8 +1,9 @@
 package mdoc
 
 import (
-	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"testing"
+
+	"github.com/alex-richards/go-mdoc/internal/testutil"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/go-cmp/cmp"

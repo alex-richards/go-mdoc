@@ -7,8 +7,11 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
-	mdocX509 "github.com/alex-richards/go-mdoc/internal/x509"
 	"time"
+
+	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
+	cose2 "github.com/alex-richards/go-mdoc/internal/cose"
+	mdocX509 "github.com/alex-richards/go-mdoc/internal/x509"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
@@ -33,9 +36,9 @@ func (ra *ReaderAuth) UnmarshalCBOR(data []byte) error {
 func (ra *ReaderAuth) Verify(
 	rootCertificates []*x509.Certificate,
 	now time.Time,
-	readerAuthenticationBytes *TaggedEncodedCBOR,
+	readerAuthenticationBytes *cbor2.TaggedEncodedCBOR,
 ) error {
-	chain, err := coseX509Chain(ra.Headers.Unprotected)
+	chain, err := cose2.X509Chain(ra.Headers.Unprotected)
 	if err != nil {
 		return err
 	}
@@ -136,19 +139,19 @@ type ReaderAuthentication struct {
 	_                    struct{} `cbor:",toarray"`
 	ReaderAuthentication string
 	SessionTranscript    SessionTranscript
-	ItemsRequestBytes    TaggedEncodedCBOR
+	ItemsRequestBytes    cbor2.TaggedEncodedCBOR
 }
 
 func NewReaderAuthenticationBytes(
 	sessionTranscript *SessionTranscript,
-	itemsRequestBytes *TaggedEncodedCBOR,
-) (*TaggedEncodedCBOR, error) {
-	return MarshalToNewTaggedEncodedCBOR(NewReaderAuthentication(sessionTranscript, itemsRequestBytes))
+	itemsRequestBytes *cbor2.TaggedEncodedCBOR,
+) (*cbor2.TaggedEncodedCBOR, error) {
+	return cbor2.MarshalToNewTaggedEncodedCBOR(NewReaderAuthentication(sessionTranscript, itemsRequestBytes))
 }
 
 func NewReaderAuthentication(
 	sessionTranscript *SessionTranscript,
-	itemsRequestBytes *TaggedEncodedCBOR,
+	itemsRequestBytes *cbor2.TaggedEncodedCBOR,
 ) *ReaderAuthentication {
 	return &ReaderAuthentication{
 		ReaderAuthentication: "ReaderAuthentication",

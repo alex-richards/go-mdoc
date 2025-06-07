@@ -1,20 +1,24 @@
 package main
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"github.com/alex-richards/go-mdoc"
-	"github.com/alex-richards/go-mdoc/cipher_suite/ecdsa"
-	"github.com/alex-richards/go-mdoc/holder"
-	"github.com/alex-richards/go-mdoc/issuer"
-	"github.com/fxamacker/cbor/v2"
-	cli "github.com/jawher/mow.cli"
-	"github.com/veraison/go-cose"
 	"io"
 	"log"
 	"regexp"
 	"time"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/issuer"
+	"github.com/cloudflare/circl/sign/ed448"
+	"github.com/fxamacker/cbor/v2"
+	cli "github.com/jawher/mow.cli"
+	"github.com/veraison/go-cose"
 )
 
 func cmdIssuerSigned(cmd *cli.Cmd) {
@@ -51,7 +55,7 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 			}
 			defer reader.Close()
 
-			signer, err := readPrivateKeyFromPEM(reader)
+			privateKey, err := readPrivateKeyFromPEM(reader)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -67,7 +71,10 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 				log.Fatal(err)
 			}
 
-			issuerAuthority, err = ecdsa.NewIssuerAuthority(signer, certificate)
+			issuerAuthority = issuer.IssuerAuthority{
+				Signer:                    cryptoSigner{privateKey},
+				DocumentSignerCertificate: certificate,
+			}
 		}
 
 		var sdf mdoc.PublicKey
@@ -186,4 +193,32 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 
 		println(hex.EncodeToString(issuerSignedBytes))
 	}
+}
+
+type cryptoSigner struct {
+	signer crypto.Signer
+}
+
+func (s cryptoSigner) Curve() mdoc.Curve {
+	switch privateKey := s.signer.(type) {
+	case *ecdsa.PrivateKey:
+		switch privateKey.Curve {
+		case elliptic.P256():
+			return mdoc.CurveP256
+		case elliptic.P384():
+			return mdoc.CurveP384
+		case elliptic.P521():
+			return mdoc.CurveP521
+		}
+	case ed25519.PrivateKey:
+		return mdoc.CurveEd25519
+	case ed448.PrivateKey:
+		return mdoc.CurveEd448
+	}
+
+	return ""
+}
+
+func (s cryptoSigner) Sign(rand io.Reader, message []byte) ([]byte, error) {
+	return s.signer.Sign(rand, message, nil)
 }

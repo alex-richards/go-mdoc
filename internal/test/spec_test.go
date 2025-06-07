@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"crypto/ecdh"
 	"crypto/x509"
+	"testing"
+	"time"
+
 	"github.com/alex-richards/go-mdoc"
-	"github.com/alex-richards/go-mdoc/holder"
+	mdocecdh "github.com/alex-richards/go-mdoc/cipher_suite/ecdh"
+	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/alex-richards/go-mdoc/internal/testutil"
+	"github.com/alex-richards/go-mdoc/reader"
+	"github.com/alex-richards/go-mdoc/session"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/go-cmp/cmp"
 	"github.com/veraison/go-cose"
-	"testing"
-	"time"
 )
 
 const (
@@ -333,10 +337,10 @@ func spec_IACA(t *testing.T) *x509.Certificate {
 	return IACA
 }
 
-func spec_SDeviceKey(t *testing.T) *holder.DeviceKey {
+func spec_SDeviceKey(t *testing.T) *mdoc.PublicKey {
 	t.Helper()
 
-	return &holder.DeviceKey{
+	return &mdoc.PublicKey{
 		Type: cose.KeyTypeEC2,
 		Params: map[any]any{
 			cose.KeyLabelEC2Curve: cose.CurveP256,
@@ -346,29 +350,31 @@ func spec_SDeviceKey(t *testing.T) *holder.DeviceKey {
 	}
 }
 
-func spec_EDeviceKeyPrivate(t *testing.T) holder.PrivateEDeviceKey {
+func spec_EDeviceKeyPrivate(t *testing.T) *mdoc.PrivateKey {
 	t.Helper()
 
 	d := testutil.DecodeHex(t, EDeviceKeyD)
 
-	EDeviceKey, err := ecdh.P256().NewPrivateKey(d)
+	key, err := ecdh.P256().NewPrivateKey(d)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return &mdoc.privateDeviceKeyECDH{
-		key:   EDeviceKey,
-		curve: mdoc.CurveP256,
+	eDeviceKey, err := mdocecdh.NewPrivateKey(mdoc.CurveP256, key)
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	return eDeviceKey
 }
 
-func spec_EDeviceKey(t *testing.T) *holder.DeviceKey {
+func spec_EDeviceKey(t *testing.T) *mdoc.PublicKey {
 	t.Helper()
 
 	x := testutil.DecodeHex(t, EDeviceKeyX)
 	y := testutil.DecodeHex(t, EDeviceKeyY)
 
-	return &holder.DeviceKey{
+	return &mdoc.PublicKey{
 		Type: cose.KeyTypeEC2,
 		Params: map[any]any{
 			cose.KeyLabelEC2Curve: cose.CurveP256,
@@ -378,29 +384,31 @@ func spec_EDeviceKey(t *testing.T) *holder.DeviceKey {
 	}
 }
 
-func spec_EReaderKeyPrivate(t *testing.T) holder.PrivateEDeviceKey {
+func spec_EReaderKeyPrivate(t *testing.T) *mdoc.PrivateKey {
 	t.Helper()
 
 	d := testutil.DecodeHex(t, EReaderKeyD)
 
-	EReaderKey, err := ecdh.P256().NewPrivateKey(d)
+	privateKey, err := ecdh.P256().NewPrivateKey(d)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return &mdoc.privateDeviceKeyECDH{
-		key:   EReaderKey,
-		curve: mdoc.CurveP256,
+	eReaderKey, err := mdocecdh.NewPrivateKey(mdoc.CurveP256, privateKey)
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	return eReaderKey
 }
 
-func spec_EReaderKey(t *testing.T) *holder.DeviceKey {
+func spec_EReaderKey(t *testing.T) *mdoc.PublicKey {
 	t.Helper()
 
 	x := testutil.DecodeHex(t, EReaderKeyX)
 	y := testutil.DecodeHex(t, EReaderKeyY)
 
-	return &holder.DeviceKey{
+	return &mdoc.PublicKey{
 		Type: cose.KeyTypeEC2,
 		Params: map[any]any{
 			cose.KeyLabelEC2Curve: cose.CurveP256,
@@ -435,7 +443,7 @@ func TestSpec_DeviceEngagement_Decode(t *testing.T) {
 func TestSpec_SessionEstablishment_Decode(t *testing.T) {
 	sessionEstablishmentBytes := testutil.DecodeHex(t, SessionEstablishmentHex)
 
-	var sessionEstablishment mdoc.SessionEstablishment
+	var sessionEstablishment session.SessionEstablishment
 	if err := cbor.Unmarshal(sessionEstablishmentBytes, &sessionEstablishment); err != nil {
 		t.Fatal(err)
 	}
@@ -458,7 +466,7 @@ func TestSpec_SessionEstablishment_Decode(t *testing.T) {
 func TestSpec_SessionData_Decode(t *testing.T) {
 	sessionDataBytes := testutil.DecodeHex(t, SessionDataHex)
 
-	var sessionData mdoc.SessionData
+	var sessionData session.SessionData
 	if err := cbor.Unmarshal(sessionDataBytes, &sessionData); err != nil {
 		t.Fatal(err)
 	}
@@ -467,32 +475,35 @@ func TestSpec_SessionData_Decode(t *testing.T) {
 func TestSpec_ReaderSessionEncryption(t *testing.T) {
 	sessionTranscriptBytes := testutil.DecodeHex(t, SessionTranscriptHex)
 
-	EDeviceKeyPrivate := spec_EDeviceKeyPrivate(t)
-	EReaderKeyPrivate := spec_EReaderKeyPrivate(t)
+	eDeviceKeyPrivate := spec_EDeviceKeyPrivate(t)
+	eReaderKeyPrivate := spec_EReaderKeyPrivate(t)
+	eDeviceKey := spec_EDeviceKey(t)
+	eReaderKey := spec_EReaderKey(t)
 
-	EDeviceKey := spec_EDeviceKey(t)
-	EReaderKey := spec_EReaderKey(t)
+	skReaderExpected := testutil.DecodeHex(t, SKReaderKey)
+	skDeviceExpected := testutil.DecodeHex(t, SKDeviceKey)
 
-	SKReaderExpected := testutil.DecodeHex(t, SKReaderKey)
-	SKDeviceExpected := testutil.DecodeHex(t, SKDeviceKey)
-
-	SKReader, err := session.SKReader(EReaderKeyPrivate, EDeviceKey, sessionTranscriptBytes)
+	skReader, err := session.SKReader(eReaderKeyPrivate.Agreer, eDeviceKey, sessionTranscriptBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(SKReaderExpected, SKReader) {
+	if !bytes.Equal(skReaderExpected, skReader) {
 		t.Fatal()
 	}
 
-	SKDevice, err := session.SKDevice(EDeviceKeyPrivate, EReaderKey, sessionTranscriptBytes)
+	skDevice, err := session.SKDevice(eDeviceKeyPrivate.Agreer, eReaderKey, sessionTranscriptBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(SKDeviceExpected, SKDevice) {
+	if !bytes.Equal(skDeviceExpected, skDevice) {
 		t.Fatal()
 	}
 
-	_, err = session.NewReaderSessionEncryption(SKReader, SKDevice)
+	_, err = reader.NewSessionEncryption(eReaderKeyPrivate, eDeviceKey,
+		&mdoccbor.TaggedEncodedCBOR{
+			TaggedValue:   sessionTranscriptBytes,
+			UntaggedValue: nil,
+		})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -508,7 +519,7 @@ func TestSpec_ReaderAuth_Verify(t *testing.T) {
 
 	sessionTranscriptEncoded := testutil.DecodeHex(t, SessionTranscriptHex)
 
-	var sessionTranscriptBytes mdoc.TaggedEncodedCBOR
+	var sessionTranscriptBytes mdoccbor.TaggedEncodedCBOR
 	err = cbor.Unmarshal(sessionTranscriptEncoded, &sessionTranscriptBytes)
 	if err != nil {
 		t.Fatal(err)
@@ -564,7 +575,7 @@ func TestSpec_DeviceRequest_Verify(t *testing.T) {
 	}
 
 	readerAuthenticationEncoded := testutil.DecodeHex(t, ReaderAuthenticationHex)
-	readerAuthenticationBytes := &mdoc.TaggedEncodedCBOR{TaggedValue: readerAuthenticationEncoded}
+	readerAuthenticationBytes := &mdoccbor.TaggedEncodedCBOR{TaggedValue: readerAuthenticationEncoded}
 
 	err := deviceRequest.DocRequests[0].ReaderAuth.Verify(
 		[]*x509.Certificate{readerRoot},
@@ -629,7 +640,7 @@ func TestSpec_DeviceResponse_DeviceAuth_Verify(t *testing.T) {
 	}
 
 	deviceAuthenticationEncoded := testutil.DecodeHex(t, DeviceAuthenticationHex)
-	deviceAuthenticationBytes, err := mdoc.NewTaggedEncodedCBOR(deviceAuthenticationEncoded)
+	deviceAuthenticationBytes, err := mdoccbor.NewTaggedEncodedCBOR(deviceAuthenticationEncoded)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -650,7 +661,7 @@ func TestSpec_SessionTranscript_RoundTrip(t *testing.T) {
 
 	var sessionTranscript mdoc.SessionTranscript
 	{
-		var sessionTranscriptBytes mdoc.TaggedEncodedCBOR
+		var sessionTranscriptBytes mdoccbor.TaggedEncodedCBOR
 		if err := cbor.Unmarshal(sessionTranscriptTagged, &sessionTranscriptBytes); err != nil {
 			t.Fatal(err)
 		}
@@ -665,7 +676,7 @@ func TestSpec_SessionTranscript_RoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sessionTranscriptTaggedAgain, err := mdoc.NewTaggedEncodedCBOR(sessionTranscriptBytes)
+	sessionTranscriptTaggedAgain, err := mdoccbor.NewTaggedEncodedCBOR(sessionTranscriptBytes)
 	if err != nil {
 		t.Fatal(err)
 	}

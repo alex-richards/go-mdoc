@@ -6,7 +6,7 @@ import (
 	"github.com/veraison/go-cose"
 )
 
-func toMDocPublicKey(public ed448.PublicKey) (*mdoc.PublicKey, error) {
+func toPublicKey(public ed448.PublicKey) (*mdoc.PublicKey, error) {
 	x := make([]byte, ed448.PublicKeySize)
 	copy(x, public)
 
@@ -19,7 +19,7 @@ func toMDocPublicKey(public ed448.PublicKey) (*mdoc.PublicKey, error) {
 	}, nil
 }
 
-func fromMDocPublicDeviceKey(deviceKey mdoc.PublicKey) (ed448.PublicKey, error) {
+func fromDeviceKey(deviceKey *mdoc.PublicKey) (ed448.PublicKey, error) {
 	if deviceKey.Type != cose.KeyTypeOKP {
 		return nil, nil // TODO error
 	}

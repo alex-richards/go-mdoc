@@ -1,24 +1,22 @@
-package mdoc
+package cbor
 
 import (
 	"errors"
-	"math/big"
 	"reflect"
-	"time"
 
 	"github.com/fxamacker/cbor/v2"
 )
 
 const (
-	cborMajorTypeFloatNoContent = 7 << 5
+	majorTypeFloatNoContent = 7 << 5
 )
 
 const (
-	cborNull = cborMajorTypeFloatNoContent | 22
+	Null = majorTypeFloatNoContent | 22
 )
 
 const (
-	cborTagEncodedCBOR = 24
+	tagEncodedCBOR = 24
 )
 
 var (
@@ -36,7 +34,7 @@ func init() {
 	err := ts.Add(
 		cbor.TagOptions{DecTag: cbor.DecTagRequired, EncTag: cbor.EncTagRequired},
 		reflect.TypeOf(bstr(nil)),
-		cborTagEncodedCBOR,
+		tagEncodedCBOR,
 	)
 	if err != nil {
 		panic(err)
@@ -51,77 +49,6 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-}
-
-type CBORType string
-
-const (
-	CBORTypeTstr     CBORType = "tstr"
-	CBORTypeBstr     CBORType = "bstr"
-	CBORTypeTdate    CBORType = "tdate"
-	CBORTypeFullDate CBORType = "full-date"
-	CBORTypeUint     CBORType = "uint"
-	CBORTypeBool     CBORType = "bool"
-)
-
-func marshalCBORTypedValue(cborType CBORType, value any) ([]byte, error) {
-	switch cborType {
-	case CBORTypeTstr:
-		_, ok := value.(string)
-		if ok {
-			return cbor.Marshal(value)
-		}
-
-	case CBORTypeBstr:
-		_, ok := value.([]byte)
-		if ok {
-			return cbor.Marshal(value)
-		}
-
-	case CBORTypeUint:
-		supported := false
-		switch v := value.(type) {
-		case uint8, uint16, uint32, uint64:
-			supported = true
-		case int8:
-			supported = v >= 0
-		case int16:
-			supported = v >= 0
-		case int32:
-			supported = v >= 0
-		case int64:
-			supported = v >= 0
-		case *big.Int:
-			supported = v.Sign() >= 0
-		case big.Int:
-			supported = v.Sign() >= 0
-		}
-		if supported {
-			return cbor.Marshal(value)
-		}
-
-	case CBORTypeBool:
-		_, ok := value.(bool)
-		if ok {
-			return cbor.Marshal(value)
-		}
-
-	case CBORTypeTdate:
-		switch datetime := value.(type) {
-		case time.Time, *time.Time:
-			// TODO configure marshaller
-			return cbor.Marshal(datetime)
-		}
-
-	case CBORTypeFullDate:
-		switch datetime := value.(type) {
-		case time.Time, *time.Time:
-			// TODO configure marshaller
-			return cbor.Marshal(datetime)
-		}
-	}
-
-	return nil, nil // TODO error
 }
 
 type bstr []byte

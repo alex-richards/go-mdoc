@@ -2,11 +2,12 @@ package main
 
 import (
 	"errors"
-	"github.com/alex-richards/go-mdoc"
 	"io"
 	"math/big"
 	"os"
 	"time"
+
+	"github.com/alex-richards/go-mdoc"
 )
 
 type CurveValue mdoc.Curve

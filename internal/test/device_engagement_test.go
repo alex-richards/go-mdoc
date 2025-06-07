@@ -1,26 +1,24 @@
-package mdoc
+package spec
 
 import (
+	"testing"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/cipher_suite/ecdh"
 	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"github.com/google/go-cmp/cmp"
-	"testing"
 )
 
 func Test_DeviceEngagement_EDeviceKey(t *testing.T) {
 	rand := testutil.NewDeterministicRand(t)
 	peripheralServerUUID := testutil.NewUUID(t, rand)
 
-	eDeviceKeyPrivate, err := NewEDeviceKey(rand, CurveP256)
+	eDeviceKey, err := ecdh.GeneratePrivateKey(rand, mdoc.CurveP256)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	eDeviceKey, err := eDeviceKeyPrivate.DeviceKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	deviceEngagement, err := NewDeviceEngagementBLE(eDeviceKey, nil, peripheralServerUUID)
+	deviceEngagement, err := mdoc.NewDeviceEngagementBLE(&eDeviceKey.PublicKey, nil, peripheralServerUUID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +28,7 @@ func Test_DeviceEngagement_EDeviceKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(eDeviceKey, eDeviceKeyOut); diff != "" {
+	if diff := cmp.Diff(&eDeviceKey.PublicKey, eDeviceKeyOut); diff != "" {
 		t.Fatal(diff)
 	}
 }
