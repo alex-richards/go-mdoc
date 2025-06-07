@@ -1,27 +1,28 @@
-package mdoc
+package session
 
 import (
-	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"reflect"
 	"testing"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/cipher_suite/ecdsa"
+	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
+	"github.com/alex-richards/go-mdoc/internal/testutil"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/go-cmp/cmp"
 )
 
 func Test_NewSessionEstablishment(t *testing.T) {
-	deviceKeyPrivate, err := NewEDeviceKey(testutil.NewDeterministicRand(t), CurveP256)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rand := testutil.NewDeterministicRand(t)
 
-	deviceKey, err := deviceKeyPrivate.DeviceKey()
+	deviceKeyPrivate, err := ecdsa.GeneratePrivateKey(rand, mdoc.CurveP256)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	_, err = NewSessionEstablishment(
-		deviceKey,
+		&deviceKeyPrivate.PublicKey,
 		[]byte{1, 2, 3, 4},
 	)
 	if err != nil {
@@ -30,7 +31,7 @@ func Test_NewSessionEstablishment(t *testing.T) {
 }
 
 func Test_SessionEstablishment_CBOR_RoundTrip(t *testing.T) {
-	eReaderKeyBytes, err := NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
+	eReaderKeyBytes, err := cbor2.NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +55,7 @@ func Test_SessionEstablishment_CBOR_RoundTrip(t *testing.T) {
 		&sessionEstablishment,
 		&sessionEstablishmentUnmarshalled,
 		cmp.FilterPath(func(p cmp.Path) bool {
-			return p.Last().Type() == reflect.TypeOf(TaggedEncodedCBOR{})
+			return p.Last().Type() == reflect.TypeOf(cbor2.TaggedEncodedCBOR{})
 		}, cmp.Ignore()),
 	); diff != "" {
 		t.Fatal(diff)

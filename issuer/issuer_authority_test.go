@@ -7,11 +7,12 @@ import (
 	"crypto/elliptic"
 	"crypto/x509"
 	"fmt"
-	"github.com/alex-richards/go-mdoc"
-	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"math/big"
 	"testing"
 	"time"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/internal/testutil"
 )
 
 func Test_Certificates(t *testing.T) {

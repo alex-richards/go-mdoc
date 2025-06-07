@@ -1,8 +1,10 @@
 package holder
 
 import (
-	"github.com/alex-richards/go-mdoc"
 	"io"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/internal/cbor"
 )
 
 func CreateDeviceResponse(
@@ -10,7 +12,7 @@ func CreateDeviceResponse(
 	candidateIssuerSigneds map[mdoc.DocType]mdoc.IssuerSigned,
 	candidateDeviceSigneds map[mdoc.DocType]map[mdoc.NameSpace]map[mdoc.DataElementIdentifier]any,
 	rand io.Reader,
-	privateSDeviceKey PrivateSDeviceKey,
+	privateSDeviceKey *mdoc.PrivateKey,
 	sessionTranscript *mdoc.SessionTranscript,
 ) (*mdoc.DeviceResponse, error) {
 	documents := make([]mdoc.Document, 0)
@@ -71,13 +73,13 @@ func CreateDeviceResponse(
 		}
 
 		requestNameSpaces = requestNameSpaces.Filter(documentDeviceNameSpaces.Contains)
-		var documentErrors *mdoc.Errors
+		var documentErrors mdoc.Errors
 		if len(requestNameSpaces) > 0 {
-			*documentErrors = make(mdoc.Errors)
+			documentErrors = make(mdoc.Errors)
 			for nameSpace, dataElements := range requestNameSpaces {
-				(*documentErrors)[nameSpace] = make(mdoc.ErrorItems)
+				documentErrors[nameSpace] = make(mdoc.ErrorItems)
 				for dataElement := range dataElements {
-					(*documentErrors)[nameSpace][dataElement] = mdoc.ErrorCodeDataNotReturned
+					documentErrors[nameSpace][dataElement] = mdoc.ErrorCodeDataNotReturned
 				}
 			}
 		}
@@ -112,10 +114,10 @@ func NewDeviceSigned(
 	docType mdoc.DocType,
 	nameSpaces mdoc.DeviceNameSpaces,
 	rand io.Reader,
-	privateSDeviceKey PrivateSDeviceKey,
+	privateSDeviceKey *mdoc.PrivateKey,
 	sessionTranscript *mdoc.SessionTranscript,
 ) (*mdoc.DeviceSigned, error) {
-	nameSpacesBytes, err := mdoc.MarshalToNewTaggedEncodedCBOR(nameSpaces)
+	nameSpacesBytes, err := cbor.MarshalToNewTaggedEncodedCBOR(nameSpaces)
 	if err != nil {
 		return nil, err
 	}

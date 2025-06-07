@@ -1,28 +1,27 @@
-package mdoc
+package spec
 
 import (
 	"bytes"
-	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"testing"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/cipher_suite/ecdh"
+	"github.com/alex-richards/go-mdoc/holder"
+	"github.com/alex-richards/go-mdoc/internal/cbor"
+	"github.com/alex-richards/go-mdoc/internal/testutil"
+	"github.com/alex-richards/go-mdoc/reader"
+	"github.com/alex-richards/go-mdoc/session"
 )
 
 func Test_SK_Equality(t *testing.T) {
 	rand := testutil.NewDeterministicRand(t)
 
-	eReaderKeyPrivate, err := mdoc.NewEDeviceKey(rand, mdoc.CurveP256)
-	if err != nil {
-		t.Fatal(err)
-	}
-	eReaderKey, err := eReaderKeyPrivate.DeviceKey()
+	eReaderKey, err := ecdh.GeneratePrivateKey(rand, mdoc.CurveP256)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	eDeviceKeyPrivate, err := mdoc.NewEDeviceKey(rand, mdoc.CurveP256)
-	if err != nil {
-		t.Fatal(err)
-	}
-	eDeviceKey, err := eDeviceKeyPrivate.DeviceKey()
+	eDeviceKey, err := ecdh.GeneratePrivateKey(rand, mdoc.CurveP256)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,12 +29,12 @@ func Test_SK_Equality(t *testing.T) {
 	sessionTranscriptBytes := []byte{1, 2, 3, 4}
 
 	{
-		readerSKReader, err := SKReader(eReaderKeyPrivate, eDeviceKey, sessionTranscriptBytes)
+		readerSKReader, err := session.SKReader(eReaderKey.Agreer, &eDeviceKey.PublicKey, sessionTranscriptBytes)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		deviceSKReader, err := SKReader(eDeviceKeyPrivate, eReaderKey, sessionTranscriptBytes)
+		deviceSKReader, err := session.SKReader(eDeviceKey.Agreer, &eReaderKey.PublicKey, sessionTranscriptBytes)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -46,12 +45,12 @@ func Test_SK_Equality(t *testing.T) {
 	}
 
 	{
-		readerSKDevice, err := SKDevice(eReaderKeyPrivate, eDeviceKey, sessionTranscriptBytes)
+		readerSKDevice, err := session.SKDevice(eReaderKey.Agreer, &eDeviceKey.PublicKey, sessionTranscriptBytes)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		deviceSKDevice, err := SKDevice(eDeviceKeyPrivate, eReaderKey, sessionTranscriptBytes)
+		deviceSKDevice, err := session.SKDevice(eDeviceKey.Agreer, &eReaderKey.PublicKey, sessionTranscriptBytes)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -63,22 +62,29 @@ func Test_SK_Equality(t *testing.T) {
 }
 
 func Test_SessionEncryption_RoundTrip(t *testing.T) {
-	keySize := 256 / 8
+	rand := testutil.NewDeterministicRand(t)
 
-	skReader := make([]byte, keySize)
-	skDevice := make([]byte, keySize)
-
-	for i := range keySize {
-		skReader[i] = byte(i)
-		skDevice[i] = byte(keySize - i)
-	}
-
-	readerSessionEncryption, err := NewReaderSessionEncryption(skReader, skDevice)
+	eDeviceKey, err := ecdh.GeneratePrivateKey(rand, mdoc.CurveP256)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	deviceSessionEncryption, err := NewDeviceSessionEncryption(skDevice, skReader)
+	eReaderKey, err := ecdh.GeneratePrivateKey(rand, mdoc.CurveP256)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sessionTranscriptBytes, err := cbor.NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	readerSessionEncryption, err := reader.NewSessionEncryption(eReaderKey, &eDeviceKey.PublicKey, sessionTranscriptBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deviceSessionEncryption, err := holder.NewSessionEncryption(eDeviceKey, &eReaderKey.PublicKey, sessionTranscriptBytes)
 	if err != nil {
 		t.Fatal(err)
 	}

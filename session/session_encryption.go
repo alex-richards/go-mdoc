@@ -1,10 +1,12 @@
-package mdoc
+package session
 
 import (
 	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
 	"io"
+
+	"github.com/alex-richards/go-mdoc"
 
 	"golang.org/x/crypto/hkdf"
 )
@@ -21,8 +23,8 @@ var ReaderIdentifier = [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
 var DeviceIdentifier = [8]byte{0, 0, 0, 0, 0, 0, 0, 1}
 
 func SKReader(
-	agreer Agreer,
-	ephemeralKey *PublicKey,
+	agreer mdoc.Agreer,
+	ephemeralKey *mdoc.PublicKey,
 	sessionTranscriptBytes []byte,
 ) ([]byte, error) {
 	return sk(
@@ -35,8 +37,8 @@ func SKReader(
 }
 
 func SKDevice(
-	agreer Agreer,
-	ephemeralKey *PublicKey,
+	agreer mdoc.Agreer,
+	ephemeralKey *mdoc.PublicKey,
 	sessionTranscriptBytes []byte,
 ) ([]byte, error) {
 	return sk(
@@ -49,8 +51,8 @@ func SKDevice(
 }
 
 func sk(
-	agreer Agreer,
-	deviceKey *PublicKey,
+	agreer mdoc.Agreer,
+	deviceKey *mdoc.PublicKey,
 	sessionTranscriptBytes []byte,
 	info string,
 	length int,

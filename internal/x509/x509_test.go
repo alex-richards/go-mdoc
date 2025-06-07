@@ -4,10 +4,11 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
-	"github.com/alex-richards/go-mdoc/internal/testutil"
 	"math/big"
 	"testing"
 	"time"
+
+	"github.com/alex-richards/go-mdoc/internal/testutil"
 )
 
 func Test_VerifyChain(t *testing.T) {

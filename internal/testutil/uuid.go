@@ -1,9 +1,10 @@
 package testutil
 
 import (
-	"github.com/alex-richards/go-mdoc/util"
 	"io"
 	"testing"
+
+	"github.com/alex-richards/go-mdoc/util"
 )
 
 func NewUUID(t testing.TB, rand io.Reader) *util.UUID {

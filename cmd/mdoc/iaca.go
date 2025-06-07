@@ -6,13 +6,14 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
-	"github.com/alex-richards/go-mdoc"
-	"github.com/alex-richards/go-mdoc/issuer"
-	cli "github.com/jawher/mow.cli"
 	"io"
 	"log"
 	"math/big"
 	"time"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/issuer"
+	"github.com/jawher/mow.cli"
 )
 
 func cmdIaca(cmd *cli.Cmd) {

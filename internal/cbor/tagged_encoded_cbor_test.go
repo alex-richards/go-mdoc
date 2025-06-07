@@ -1,10 +1,11 @@
-package mdoc
+package cbor
 
 import (
-	"github.com/fxamacker/cbor/v2"
-	"github.com/google/go-cmp/cmp"
 	"io"
 	"testing"
+
+	"github.com/fxamacker/cbor/v2"
+	"github.com/google/go-cmp/cmp"
 )
 
 const (
@@ -36,7 +37,7 @@ func Test_MarshalToTaggedEncodedCBOR(t *testing.T) {
 			value: "string",
 			want: &TaggedEncodedCBOR{
 				TaggedValue: []byte{
-					cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+					cborMajorTypeTaggedValue | cborArgumentLength1, tagEncodedCBOR,
 					cborMajorTypeBstr | 7,
 					cborMajorTypeStr | 6, 's', 't', 'r', 'i', 'n', 'g',
 				},
@@ -50,12 +51,12 @@ func Test_MarshalToTaggedEncodedCBOR(t *testing.T) {
 			value: nil,
 			want: &TaggedEncodedCBOR{
 				TaggedValue: []byte{
-					cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+					cborMajorTypeTaggedValue | cborArgumentLength1, tagEncodedCBOR,
 					cborMajorTypeBstr | 1,
-					cborNull,
+					Null,
 				},
 				UntaggedValue: []byte{
-					cborNull,
+					Null,
 				},
 			},
 		},
@@ -86,7 +87,7 @@ func Test_NewTaggedEncodedCBOR(t *testing.T) {
 			untaggedValue: []byte{1, 2, 3, 4},
 			want: &TaggedEncodedCBOR{
 				TaggedValue: []byte{
-					cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+					cborMajorTypeTaggedValue | cborArgumentLength1, tagEncodedCBOR,
 					cborMajorTypeBstr | 4, 1, 2, 3, 4,
 				},
 				UntaggedValue: []byte{1, 2, 3, 4},
@@ -102,7 +103,7 @@ func Test_NewTaggedEncodedCBOR(t *testing.T) {
 			untaggedValue: []byte{},
 			want: &TaggedEncodedCBOR{
 				TaggedValue: []byte{
-					cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+					cborMajorTypeTaggedValue | cborArgumentLength1, tagEncodedCBOR,
 					cborMajorTypeBstr | 0,
 				},
 				UntaggedValue: []byte{},
@@ -134,7 +135,7 @@ func Test_TaggedEncodedCBOR_MarshalCBOR(t *testing.T) {
 			name: "marshal complete",
 			taggedEncodedCBOR: TaggedEncodedCBOR{
 				TaggedValue: []byte{
-					cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+					cborMajorTypeTaggedValue | cborArgumentLength1, tagEncodedCBOR,
 					cborMajorTypeBstr | 1, cborEmptyMap,
 				},
 				UntaggedValue: []byte{
@@ -142,7 +143,7 @@ func Test_TaggedEncodedCBOR_MarshalCBOR(t *testing.T) {
 				},
 			},
 			want: []byte{
-				cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+				cborMajorTypeTaggedValue | cborArgumentLength1, tagEncodedCBOR,
 				cborMajorTypeBstr | 1, cborEmptyMap,
 			},
 		},
@@ -150,12 +151,12 @@ func Test_TaggedEncodedCBOR_MarshalCBOR(t *testing.T) {
 			name: "marshal tagged only",
 			taggedEncodedCBOR: TaggedEncodedCBOR{
 				TaggedValue: []byte{
-					cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+					cborMajorTypeTaggedValue | cborArgumentLength1, tagEncodedCBOR,
 					cborMajorTypeBstr | 1, cborEmptyMap,
 				},
 			},
 			want: []byte{
-				cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+				cborMajorTypeTaggedValue | cborArgumentLength1, tagEncodedCBOR,
 				cborMajorTypeBstr | 1, cborEmptyMap,
 			},
 		},
@@ -203,12 +204,12 @@ func Test_TaggedEncodedCBOR_UnmarshalCBOR(t *testing.T) {
 		{
 			name: "unmarshal tagged",
 			data: []byte{
-				cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+				cborMajorTypeTaggedValue | cborArgumentLength1, tagEncodedCBOR,
 				cborMajorTypeBstr | 1, cborEmptyMap,
 			},
 			want: TaggedEncodedCBOR{
 				TaggedValue: []byte{
-					cborMajorTypeTaggedValue | cborArgumentLength1, cborTagEncodedCBOR,
+					cborMajorTypeTaggedValue | cborArgumentLength1, tagEncodedCBOR,
 					cborMajorTypeBstr | 1, cborEmptyMap,
 				},
 				UntaggedValue: []byte{
@@ -221,7 +222,7 @@ func Test_TaggedEncodedCBOR_UnmarshalCBOR(t *testing.T) {
 			data: []byte{
 				cborEmptyMap,
 			},
-			wantErrMessage: "cbor: cannot unmarshal map into Go value of type mdoc.bstr (expect CBOR tag value)",
+			wantErrMessage: "cbor: cannot unmarshal map into Go value of type cbor.bstr (expect CBOR tag value)",
 		},
 		{
 			name:    "unmarshal empty",

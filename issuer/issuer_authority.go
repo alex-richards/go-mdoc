@@ -8,11 +8,13 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"errors"
-	"github.com/alex-richards/go-mdoc"
 	"io"
 	"math/big"
 	"reflect"
 	"time"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/cloudflare/circl/sign/ed448"
 )
 
 var (
@@ -24,9 +26,9 @@ var (
 	ErrDocumentSignerStateMustMatchIACA               = errors.New("mdoc: document signer state must match IACA")
 )
 
-type IssuerAuthority interface {
-	Signer() mdoc.Signer
-	DocumentSignerCertificate() *x509.Certificate
+type IssuerAuthority struct {
+	Signer                    mdoc.Signer
+	DocumentSignerCertificate *x509.Certificate
 }
 
 func NewIACACertificate(
@@ -83,7 +85,7 @@ func NewDocumentSignerCertificate(
 	notBefore, notAfter time.Time,
 ) ([]byte, error) {
 	switch publicKey.(type) {
-	case *ecdsa.PublicKey, ed25519.PublicKey: // allow
+	case *ecdsa.PublicKey, ed25519.PublicKey, ed448.PublicKey: // allow
 	default:
 		return nil, ErrDocumentSignerUnsupportedPublicKeyType
 	}

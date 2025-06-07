@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"crypto/x509"
 	"errors"
-	"github.com/fxamacker/cbor/v2"
 	"io"
 	"time"
+
+	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
+	"github.com/fxamacker/cbor/v2"
 )
 
 var (
@@ -50,7 +52,7 @@ type Document struct {
 	DocType      DocType      `cbor:"docType"`
 	IssuerSigned IssuerSigned `cbor:"issuerSigned"`
 	DeviceSigned DeviceSigned `cbor:"deviceSigned"`
-	Errors       *Errors      `cbor:"errors,omitempty"`
+	Errors       Errors       `cbor:"errors,omitempty"`
 }
 
 func (d *Document) Verify(
@@ -161,7 +163,7 @@ func (ins IssuerNameSpaces) IssuerSignedItems() (IssuerSignedItems, error) {
 	return issuerSignedItemss, nil
 }
 
-type IssuerSignedItemBytes TaggedEncodedCBOR
+type IssuerSignedItemBytes cbor2.TaggedEncodedCBOR
 
 func CreateIssuerSignedItemBytes(
 	rand io.Reader,
@@ -175,7 +177,7 @@ func CreateIssuerSignedItemBytes(
 		return nil, err
 	}
 
-	issuerSignedItemBytes, err := MarshalToNewTaggedEncodedCBOR(IssuerSignedItem{
+	issuerSignedItemBytes, err := cbor2.MarshalToNewTaggedEncodedCBOR(IssuerSignedItem{
 		DigestID:          digestID,
 		Random:            random,
 		ElementIdentifier: elementIdentifier,
@@ -189,11 +191,11 @@ func CreateIssuerSignedItemBytes(
 }
 
 func (isib *IssuerSignedItemBytes) MarshalCBOR() ([]byte, error) {
-	return (*TaggedEncodedCBOR)(isib).MarshalCBOR()
+	return (*cbor2.TaggedEncodedCBOR)(isib).MarshalCBOR()
 }
 
 func (isib *IssuerSignedItemBytes) UnmarshalCBOR(data []byte) error {
-	return (*TaggedEncodedCBOR)(isib).UnmarshalCBOR(data)
+	return (*cbor2.TaggedEncodedCBOR)(isib).UnmarshalCBOR(data)
 }
 
 func (isib *IssuerSignedItemBytes) IssuerSignedItem() (*IssuerSignedItem, error) {
@@ -224,13 +226,13 @@ type IssuerSignedItem struct {
 }
 
 type DeviceSigned struct {
-	NameSpacesBytes TaggedEncodedCBOR `cbor:"nameSpaces"`
-	DeviceAuth      DeviceAuth        `cbor:"deviceAuth"`
+	NameSpacesBytes cbor2.TaggedEncodedCBOR `cbor:"nameSpaces"`
+	DeviceAuth      DeviceAuth              `cbor:"deviceAuth"`
 }
 
 func (ds *DeviceSigned) Verify(
 	deviceKey *PublicKey,
-	deviceAuthenticationBytes *TaggedEncodedCBOR,
+	deviceAuthenticationBytes *cbor2.TaggedEncodedCBOR,
 	mobileSecurityObject *MobileSecurityObject,
 ) error {
 	err := ds.DeviceAuth.Verify(deviceKey, deviceAuthenticationBytes)

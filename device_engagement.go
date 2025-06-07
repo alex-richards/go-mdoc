@@ -2,6 +2,8 @@ package mdoc
 
 import (
 	"errors"
+
+	"github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/alex-richards/go-mdoc/util"
 )
 
@@ -25,7 +27,7 @@ func NewDeviceEngagementBLE(
 	eDeviceKey *PublicKey,
 	centralClientUUID, peripheralServerUUID *util.UUID,
 ) (*DeviceEngagement, error) {
-	eDeviceKeyBytes, err := MarshalToNewTaggedEncodedCBOR(eDeviceKey)
+	eDeviceKeyBytes, err := cbor.MarshalToNewTaggedEncodedCBOR(eDeviceKey)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +58,7 @@ func NewDeviceEngagementBLE(
 type Security struct {
 	_                     struct{} `cbor:",toarray"`
 	CipherSuiteIdentifier int
-	EDeviceKeyBytes       TaggedEncodedCBOR
+	EDeviceKeyBytes       cbor.TaggedEncodedCBOR
 }
 
 type DeviceRetrievalMethodType uint

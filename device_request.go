@@ -3,8 +3,10 @@ package mdoc
 import (
 	"crypto/x509"
 	"errors"
-	"github.com/fxamacker/cbor/v2"
 	"time"
+
+	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
+	"github.com/fxamacker/cbor/v2"
 )
 
 var (
@@ -49,12 +51,12 @@ func (dr *DeviceRequest) Verify(
 }
 
 type DocRequest struct {
-	ItemsRequestBytes TaggedEncodedCBOR `cbor:"itemsRequest"`
-	ReaderAuth        *ReaderAuth       `cbor:"readerAuth,omitempty"`
+	ItemsRequestBytes cbor2.TaggedEncodedCBOR `cbor:"itemsRequest"`
+	ReaderAuth        *ReaderAuth             `cbor:"readerAuth,omitempty"`
 }
 
 func NewDocRequest(itemsRequest *ItemsRequest) (*DocRequest, error) {
-	itemsRequestBytes, err := MarshalToNewTaggedEncodedCBOR(itemsRequest)
+	itemsRequestBytes, err := cbor2.MarshalToNewTaggedEncodedCBOR(itemsRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -144,10 +146,10 @@ type DataElementIdentifier string
 type DataElementValue any
 
 type TypedDataElementValue struct {
-	CBORType CBORType
+	CBORType cbor2.CBORType
 	Value    DataElementValue
 }
 
 func (v *TypedDataElementValue) MarshalCBOR() ([]byte, error) {
-	return marshalCBORTypedValue(v.CBORType, v.Value)
+	return cbor2.MarshalTypedValue(v.CBORType, v.Value)
 }

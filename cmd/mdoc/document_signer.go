@@ -8,13 +8,15 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
-	"github.com/alex-richards/go-mdoc"
-	"github.com/alex-richards/go-mdoc/issuer"
-	cli "github.com/jawher/mow.cli"
 	"io"
 	"log"
 	"math/big"
 	"time"
+
+	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/issuer"
+	"github.com/cloudflare/circl/sign/ed448"
+	"github.com/jawher/mow.cli"
 )
 
 func cmdDocSigner(cmd *cli.Cmd) {
@@ -172,6 +174,11 @@ func cmdDocSignerCreateAction(
 		documentSignerPublicKey = documentSignerPrivateKey.Public()
 	case mdoc.CurveEd25519:
 		documentSignerPublicKey, documentSignerPrivateKey, err = ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			log.Fatal(err)
+		}
+	case mdoc.CurveEd448:
+		documentSignerPublicKey, documentSignerPrivateKey, err = ed448.GenerateKey(rand.Reader)
 		if err != nil {
 			log.Fatal(err)
 		}
