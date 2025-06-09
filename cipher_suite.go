@@ -5,8 +5,7 @@ import (
 )
 
 var (
-	ErrUnsupportedCurve     = errors.New("mdoc: unsupported curve")
-	ErrUnsupportedAlgorithm = errors.New("mdoc: unsupported algorithm")
+	ErrUnsupportedCurve = errors.New("mdoc: unsupported curve")
 )
 
 const (

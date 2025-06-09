@@ -19,22 +19,3 @@ func toPublicKey(public ed25519.PublicKey) (*mdoc.PublicKey, error) {
 		},
 	}, nil
 }
-
-func fromPublicKey(key *mdoc.PublicKey) (ed25519.PublicKey, error) {
-	if key.Type != cose.KeyTypeOKP {
-		return nil, nil // TODO error
-	}
-
-	if key.Params[cose.KeyLabelOKPCurve] != cose.CurveEd25519 {
-		return nil, nil // TODO error
-	}
-
-	x, ok := key.Params[cose.KeyLabelOKPX].([]byte)
-	if !ok || len(x) != ed25519.PublicKeySize {
-		return nil, nil // TODO error
-	}
-
-	public := make([]byte, ed25519.PublicKeySize)
-	copy(public, x)
-	return public, nil
-}

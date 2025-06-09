@@ -2,36 +2,30 @@ package ecdh
 
 import (
 	"crypto/ecdh"
-	"errors"
 
 	"github.com/alex-richards/go-mdoc"
 	"github.com/veraison/go-cose"
 )
 
 func toPublicKey(public *ecdh.PublicKey) (*mdoc.PublicKey, error) {
-	typ := cose.KeyTypeReserved
-	alg := cose.AlgorithmReserved
 	curve := cose.CurveReserved
-
+	typ := cose.KeyTypeReserved
+	alg := cose.AlgorithmReserved // TODO -27? go-cose ECDH support?
 	switch public.Curve() {
 	case ecdh.P256():
-		typ = cose.KeyTypeEC2
-		//alg = cose.AlgorithmES256
 		curve = cose.CurveP256
+		typ = cose.KeyTypeEC2
 	case ecdh.P384():
-		typ = cose.KeyTypeEC2
-		//alg = cose.AlgorithmES384
 		curve = cose.CurveP384
-	case ecdh.P521():
 		typ = cose.KeyTypeEC2
-		//alg = cose.AlgorithmES512
+	case ecdh.P521():
 		curve = cose.CurveP521
+		typ = cose.KeyTypeEC2
 	case ecdh.X25519():
-		typ = cose.KeyTypeOKP
-		//alg = cose.AlgorithmReserved
 		curve = cose.CurveX25519
+		typ = cose.KeyTypeOKP
 	default:
-		return nil, errors.New("TODO error")
+		return nil, mdoc.ErrUnsupportedCurve
 	}
 
 	bytes := public.Bytes()
@@ -41,7 +35,7 @@ func toPublicKey(public *ecdh.PublicKey) (*mdoc.PublicKey, error) {
 		size := (len(bytes) - 1) / 2
 
 		if bytes[0] != 4 || size == 0 {
-			return nil, errors.New("TODO error") // TODO
+			panic("unexpected format")
 		}
 
 		x := make([]byte, size)
@@ -81,17 +75,17 @@ func fromPublicKey(key *mdoc.PublicKey) (*ecdh.PublicKey, error) {
 		case cose.CurveP521:
 			curve = ecdh.P521()
 		default:
-			return nil, errors.New("TODO error")
+			return nil, mdoc.ErrUnsupportedCurve
 		}
 
 		x, ok := key.Params[cose.KeyLabelEC2X].([]byte)
 		if !ok {
-			return nil, errors.New("TODO error")
+			return nil, mdoc.ErrInvalidCOSE
 		}
 
 		y, ok := key.Params[cose.KeyLabelEC2Y].([]byte)
 		if !ok {
-			return nil, errors.New("TODO error")
+			return nil, mdoc.ErrInvalidCOSE
 		}
 
 		bytes := make([]byte, 1+len(x)+len(y))
@@ -103,17 +97,17 @@ func fromPublicKey(key *mdoc.PublicKey) (*ecdh.PublicKey, error) {
 
 	case cose.KeyTypeOKP:
 		if key.Params[cose.KeyLabelOKPCurve] != cose.CurveX25519 {
-			return nil, errors.New("TODO error")
+			return nil, mdoc.ErrUnsupportedCurve
 		}
 
 		x, ok := key.Params[cose.KeyLabelOKPX].([]byte)
 		if !ok {
-			return nil, errors.New("TODO error")
+			return nil, mdoc.ErrInvalidCOSE
 		}
 
 		return ecdh.X25519().NewPublicKey(x)
 
 	default:
-		return nil, errors.New("TODO error")
+		return nil, mdoc.ErrUnsupportedCurve
 	}
 }

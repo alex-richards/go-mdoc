@@ -14,8 +14,12 @@ func GeneratePrivateKey(rand io.Reader) (*mdoc.PrivateKey, error) {
 		return nil, err
 	}
 
+	return NewPrivateKey(&privateKey)
+}
+
+func NewPrivateKey(privateKey *x448.Key) (*mdoc.PrivateKey, error) {
 	var publicKey x448.Key
-	x448.KeyGen(&publicKey, &privateKey)
+	x448.KeyGen(&publicKey, privateKey)
 
 	pk, err := toPublicKey(&publicKey)
 	if err != nil {
@@ -24,25 +28,25 @@ func GeneratePrivateKey(rand io.Reader) (*mdoc.PrivateKey, error) {
 
 	return &mdoc.PrivateKey{
 		Signer:    nil,
-		Agreer:    (*agreer)(&privateKey),
+		Agreer:    (agreer)(*privateKey),
 		PublicKey: *pk,
 	}, nil
 }
 
 type agreer x448.Key
 
-func (a *agreer) Curve() mdoc.Curve {
+func (a agreer) Curve() mdoc.Curve {
 	return mdoc.CurveX448
 }
 
-func (a *agreer) Agree(deviceKey *mdoc.PublicKey) ([]byte, error) {
+func (a agreer) Agree(deviceKey *mdoc.PublicKey) ([]byte, error) {
 	remote, err := fromPublicKey(deviceKey)
 	if err != nil {
 		return nil, err
 	}
 
 	var shared x448.Key
-	x448.Shared(&shared, (*x448.Key)(a), remote)
+	x448.Shared(&shared, (*x448.Key)(&a), remote)
 
 	return shared[:], nil
 }

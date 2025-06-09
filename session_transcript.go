@@ -93,7 +93,7 @@ func (qrh *QRHandover) MarshalCBOR() ([]byte, error) {
 }
 func (qrh *QRHandover) UnmarshalCBOR(data []byte) error {
 	if !bytes.Equal([]byte{mdoccbor.Null}, data) {
-		return errors.New("mdoc: not a qr handover")
+		return ErrUnrecognizedHandover
 	}
 	return nil
 }

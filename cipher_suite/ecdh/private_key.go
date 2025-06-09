@@ -8,28 +8,6 @@ import (
 )
 
 func GeneratePrivateKey(rand io.Reader, curve mdoc.Curve) (*mdoc.PrivateKey, error) {
-	privateKey, err := newPrivateKey(rand, curve)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewPrivateKey(curve, privateKey)
-}
-
-func NewPrivateKey(curve mdoc.Curve, privateKey *ecdh.PrivateKey) (*mdoc.PrivateKey, error) {
-	publicKey, err := toPublicKey(privateKey.PublicKey())
-	if err != nil {
-		return nil, err
-	}
-
-	return &mdoc.PrivateKey{
-		Signer:    nil,
-		Agreer:    &agreer{curve, privateKey},
-		PublicKey: *publicKey,
-	}, nil
-}
-
-func newPrivateKey(rand io.Reader, curve mdoc.Curve) (*ecdh.PrivateKey, error) {
 	var c ecdh.Curve
 	switch curve {
 	case mdoc.CurveP256:
@@ -41,15 +19,46 @@ func newPrivateKey(rand io.Reader, curve mdoc.Curve) (*ecdh.PrivateKey, error) {
 	case mdoc.CurveX25519:
 		c = ecdh.X25519()
 	default:
-		return nil, nil // TODO error
+		return nil, mdoc.ErrUnsupportedCurve
 	}
 
-	key, err := c.GenerateKey(rand)
+	privateKey, err := c.GenerateKey(rand)
 	if err != nil {
 		return nil, err
 	}
 
-	return key, nil
+	return newPrivateKey(curve, privateKey)
+}
+
+func NewPrivateKey(privateKey *ecdh.PrivateKey) (*mdoc.PrivateKey, error) {
+	var curve mdoc.Curve
+	switch privateKey.Curve() {
+	case ecdh.P256():
+		curve = mdoc.CurveP256
+	case ecdh.P384():
+		curve = mdoc.CurveP384
+	case ecdh.P521():
+		curve = mdoc.CurveP521
+	case ecdh.X25519():
+		curve = mdoc.CurveX25519
+	default:
+		return nil, mdoc.ErrUnsupportedCurve
+	}
+
+	return newPrivateKey(curve, privateKey)
+}
+
+func newPrivateKey(curve mdoc.Curve, privateKey *ecdh.PrivateKey) (*mdoc.PrivateKey, error) {
+	publicKey, err := toPublicKey(privateKey.PublicKey())
+	if err != nil {
+		return nil, err
+	}
+
+	return &mdoc.PrivateKey{
+		Signer:    nil,
+		Agreer:    &agreer{curve, privateKey},
+		PublicKey: *publicKey,
+	}, nil
 }
 
 type agreer struct {

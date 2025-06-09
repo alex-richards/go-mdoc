@@ -13,6 +13,19 @@ func GeneratePrivateKey(rand io.Reader) (*mdoc.PrivateKey, error) {
 		return nil, err
 	}
 
+	return newPrivateKey(publicKey, privateKey)
+}
+
+func NewPrivateKey(privateKey ed25519.PrivateKey) (*mdoc.PrivateKey, error) {
+	publicKey, ok := privateKey.Public().(ed25519.PublicKey)
+	if !ok {
+		panic("unreachable")
+	}
+
+	return newPrivateKey(publicKey, privateKey)
+}
+
+func newPrivateKey(publicKey ed25519.PublicKey, privateKey ed25519.PrivateKey) (*mdoc.PrivateKey, error) {
 	pk, err := toPublicKey(publicKey)
 	if err != nil {
 		return nil, err

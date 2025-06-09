@@ -3,7 +3,6 @@ package ecdsa
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"errors"
 
 	"github.com/alex-richards/go-mdoc"
 	"github.com/veraison/go-cose"
@@ -23,38 +22,24 @@ func toPublicKey(key *ecdsa.PublicKey) (*mdoc.PublicKey, error) {
 		curve = cose.CurveP521
 		alg = cose.AlgorithmES512
 	default:
-		return nil, ErrUnsupportedCurve
+		return nil, mdoc.ErrUnsupportedCurve
 	}
 
 	size := (key.Params().BitSize + 7) / 8
 
-	x := key.X.Bytes()
-	xLen := len(x)
+	x := make([]byte, size)
+	key.X.FillBytes(x)
 
-	y := key.Y.Bytes()
-	yLen := len(y)
-
-	if xLen > size || yLen > size {
-		return nil, errors.New("TODO error") // TODO
-	}
-
-	coseX := make([]byte, size)
-	copy(coseX[size-xLen:], x)
-
-	coseY := make([]byte, size)
-	copy(coseY[size-yLen:], y)
+	y := make([]byte, size)
+	key.Y.FillBytes(y)
 
 	return &mdoc.PublicKey{
 		Type:      cose.KeyTypeEC2,
 		Algorithm: alg,
 		Params: map[any]any{
 			cose.KeyLabelEC2Curve: curve,
-			cose.KeyLabelEC2X:     coseX,
-			cose.KeyLabelEC2Y:     coseY,
+			cose.KeyLabelEC2X:     x,
+			cose.KeyLabelEC2Y:     y,
 		},
 	}, nil
-}
-
-func fromPublicDeviceKey(key *mdoc.PublicKey) (*ecdsa.PublicKey, error) {
-	panic("todo") // TOOD
 }

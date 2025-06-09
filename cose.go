@@ -1,9 +1,14 @@
 package mdoc
 
 import (
+	"errors"
 	"io"
 
 	"github.com/veraison/go-cose"
+)
+
+var (
+	ErrInvalidCOSE = errors.New("mdoc: invalid cose")
 )
 
 type CoseSigner struct {

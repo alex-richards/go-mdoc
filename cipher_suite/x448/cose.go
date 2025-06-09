@@ -6,29 +6,6 @@ import (
 	"github.com/veraison/go-cose"
 )
 
-func fromPublicKey(deviceKey *mdoc.PublicKey) (*x448.Key, error) {
-	if deviceKey.Type != cose.KeyTypeOKP {
-		return nil, nil // TODO error
-	}
-
-	if deviceKey.Params[cose.KeyLabelOKPCurve] != cose.CurveX448 {
-		return nil, nil // TODO error
-	}
-
-	x, ok := deviceKey.Params[cose.KeyLabelOKPX].([]byte)
-	if !ok {
-		return nil, nil // TODO error
-	}
-
-	var key x448.Key
-	if len(x) != len(key) {
-		return nil, nil // TODO error
-	}
-
-	copy(key[:], x)
-	return &key, nil
-}
-
 func toPublicKey(public *x448.Key) (*mdoc.PublicKey, error) {
 	x := make([]byte, len(public))
 	copy(x, public[:])
@@ -40,4 +17,27 @@ func toPublicKey(public *x448.Key) (*mdoc.PublicKey, error) {
 			cose.KeyLabelOKPX:     x,
 		},
 	}, nil
+}
+
+func fromPublicKey(deviceKey *mdoc.PublicKey) (*x448.Key, error) {
+	if deviceKey.Type != cose.KeyTypeOKP {
+		return nil, mdoc.ErrInvalidCOSE
+	}
+
+	if deviceKey.Params[cose.KeyLabelOKPCurve] != cose.CurveX448 {
+		return nil, mdoc.ErrInvalidCOSE
+	}
+
+	x, ok := deviceKey.Params[cose.KeyLabelOKPX].([]byte)
+	if !ok {
+		return nil, mdoc.ErrInvalidCOSE
+	}
+
+	var key x448.Key
+	if len(x) != len(key) {
+		return nil, mdoc.ErrInvalidCOSE
+	}
+
+	copy(key[:], x)
+	return &key, nil
 }

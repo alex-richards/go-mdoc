@@ -126,7 +126,7 @@ func Test_IssueMDoc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	documentSigner, err := mdocecdsa.NewPrivateKey(mdoc.CurveP256, documentSignerKey)
+	documentSigner, err := mdocecdsa.NewPrivateKey(documentSignerKey)
 	if err != nil {
 		t.Fatal(err)
 	}

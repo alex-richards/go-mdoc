@@ -4,75 +4,50 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/asn1"
-	"errors"
 	"io"
 	"math/big"
 
 	"github.com/alex-richards/go-mdoc"
 )
 
-var (
-	ErrUnsupportedCurve = errors.New("mdoc: ecdsa: unsupported curve")
-)
-
 func GeneratePrivateKey(rand io.Reader, curve mdoc.Curve) (*mdoc.PrivateKey, error) {
-	signer, err := generateSigner(rand, curve)
-	if err != nil {
-		return nil, err
-	}
-
-	publicKey, err := toPublicKey(&signer.privateKey.PublicKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return &mdoc.PrivateKey{
-		Signer:    signer,
-		Agreer:    nil,
-		PublicKey: *publicKey,
-	}, nil
-}
-
-func NewPrivateKey(curve mdoc.Curve, privateKey *ecdsa.PrivateKey) (*mdoc.PrivateKey, error) {
-	signer, err := newSigner(curve, privateKey)
-	if err != nil {
-		return nil, err
-	}
-
-	publicKey, err := toPublicKey(&signer.privateKey.PublicKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return &mdoc.PrivateKey{
-		Signer:    signer,
-		Agreer:    nil,
-		PublicKey: *publicKey,
-	}, nil
-}
-
-func generateSigner(rand io.Reader, curve mdoc.Curve) (*signer, error) {
-	var ellipticCurve elliptic.Curve
+	var c elliptic.Curve
 	switch curve {
 	case mdoc.CurveP256:
-		ellipticCurve = elliptic.P256()
+		c = elliptic.P256()
 	case mdoc.CurveP384:
-		ellipticCurve = elliptic.P384()
+		c = elliptic.P384()
 	case mdoc.CurveP521:
-		ellipticCurve = elliptic.P521()
+		c = elliptic.P521()
 	default:
-		return nil, ErrUnsupportedCurve
+		return nil, mdoc.ErrUnsupportedCurve
 	}
 
-	privateKey, err := ecdsa.GenerateKey(ellipticCurve, rand)
+	privateKey, err := ecdsa.GenerateKey(c, rand)
 	if err != nil {
 		return nil, err
 	}
 
-	return newSigner(curve, privateKey)
+	return newPrivateKey(curve, privateKey)
 }
 
-func newSigner(curve mdoc.Curve, privateKey *ecdsa.PrivateKey) (*signer, error) {
+func NewPrivateKey(privateKey *ecdsa.PrivateKey) (*mdoc.PrivateKey, error) {
+	var curve mdoc.Curve
+	switch privateKey.Curve {
+	case elliptic.P256():
+		curve = mdoc.CurveP256
+	case elliptic.P384():
+		curve = mdoc.CurveP384
+	case elliptic.P521():
+		curve = mdoc.CurveP521
+	default:
+		return nil, mdoc.ErrUnsupportedCurve
+	}
+
+	return newPrivateKey(curve, privateKey)
+}
+
+func newPrivateKey(curve mdoc.Curve, privateKey *ecdsa.PrivateKey) (*mdoc.PrivateKey, error) {
 	var digestAlgorithm mdoc.DigestAlgorithm
 	switch curve {
 	case mdoc.CurveP256:
@@ -82,13 +57,21 @@ func newSigner(curve mdoc.Curve, privateKey *ecdsa.PrivateKey) (*signer, error) 
 	case mdoc.CurveP521:
 		digestAlgorithm = mdoc.DigestAlgorithmSHA512
 	default:
-		return nil, ErrUnsupportedCurve
+		return nil, mdoc.ErrUnsupportedCurve
 	}
 
-	return &signer{
-		*privateKey,
-		curve,
-		digestAlgorithm,
+	publicKey, err := toPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return &mdoc.PrivateKey{
+		Signer: signer{
+			privateKey:      *privateKey,
+			curve:           curve,
+			digestAlgorithm: digestAlgorithm,
+		},
+		PublicKey: *publicKey,
 	}, nil
 }
 
@@ -98,11 +81,11 @@ type signer struct {
 	digestAlgorithm mdoc.DigestAlgorithm
 }
 
-func (s *signer) Curve() mdoc.Curve {
+func (s signer) Curve() mdoc.Curve {
 	return s.curve
 }
 
-func (s *signer) Sign(rand io.Reader, message []byte) ([]byte, error) {
+func (s signer) Sign(rand io.Reader, message []byte) ([]byte, error) {
 	sum, err := s.digestAlgorithm.Sum(message)
 	if err != nil {
 		return nil, err

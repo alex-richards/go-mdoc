@@ -1,10 +1,16 @@
 package cbor
 
 import (
+	"errors"
 	"math/big"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
+)
+
+var (
+	ErrUnsupportedValue = errors.New("mdoc: cbor: unsupported value")
+	ErrUnknownType      = errors.New("mdoc: cbor: unknown type")
 )
 
 type CBORType string
@@ -25,12 +31,14 @@ func MarshalTypedValue(cborType CBORType, value any) ([]byte, error) {
 		if ok {
 			return cbor.Marshal(value)
 		}
+		return nil, ErrUnsupportedValue
 
 	case CBORTypeBstr:
 		_, ok := value.([]byte)
 		if ok {
 			return cbor.Marshal(value)
 		}
+		return nil, ErrUnsupportedValue
 
 	case CBORTypeUint:
 		supported := false
@@ -53,12 +61,14 @@ func MarshalTypedValue(cborType CBORType, value any) ([]byte, error) {
 		if supported {
 			return cbor.Marshal(value)
 		}
+		return nil, ErrUnsupportedValue
 
 	case CBORTypeBool:
 		_, ok := value.(bool)
 		if ok {
 			return cbor.Marshal(value)
 		}
+		return nil, ErrUnsupportedValue
 
 	case CBORTypeTdate:
 		switch datetime := value.(type) {
@@ -66,6 +76,7 @@ func MarshalTypedValue(cborType CBORType, value any) ([]byte, error) {
 			// TODO configure marshaller
 			return cbor.Marshal(datetime)
 		}
+		return nil, ErrUnsupportedValue
 
 	case CBORTypeFullDate:
 		switch datetime := value.(type) {
@@ -73,7 +84,8 @@ func MarshalTypedValue(cborType CBORType, value any) ([]byte, error) {
 			// TODO configure marshaller
 			return cbor.Marshal(datetime)
 		}
+		return nil, ErrUnsupportedValue
 	}
 
-	return nil, nil // TODO error
+	return nil, ErrUnknownType
 }

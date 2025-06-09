@@ -360,7 +360,7 @@ func spec_EDeviceKeyPrivate(t *testing.T) *mdoc.PrivateKey {
 		t.Fatal(err)
 	}
 
-	eDeviceKey, err := mdocecdh.NewPrivateKey(mdoc.CurveP256, key)
+	eDeviceKey, err := mdocecdh.NewPrivateKey(key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -394,7 +394,7 @@ func spec_EReaderKeyPrivate(t *testing.T) *mdoc.PrivateKey {
 		t.Fatal(err)
 	}
 
-	eReaderKey, err := mdocecdh.NewPrivateKey(mdoc.CurveP256, privateKey)
+	eReaderKey, err := mdocecdh.NewPrivateKey(privateKey)
 	if err != nil {
 		t.Fatal(err)
 	}
