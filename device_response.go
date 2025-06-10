@@ -165,7 +165,7 @@ func (ins IssuerNameSpaces) IssuerSignedItems() (IssuerSignedItems, error) {
 
 type IssuerSignedItemBytes cbor2.TaggedEncodedCBOR
 
-func CreateIssuerSignedItemBytes(
+func NewIssuerSignedItemBytes(
 	rand io.Reader,
 	digestID DigestID,
 	elementIdentifier DataElementIdentifier,

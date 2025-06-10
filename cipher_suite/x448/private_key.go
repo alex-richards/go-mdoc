@@ -7,6 +7,7 @@ import (
 	"github.com/cloudflare/circl/dh/x448"
 )
 
+// GeneratePrivateKey generates a new private key for use with go-mdoc.
 func GeneratePrivateKey(rand io.Reader) (*mdoc.PrivateKey, error) {
 	var privateKey x448.Key
 	_, err := rand.Read(privateKey[:])
@@ -17,6 +18,7 @@ func GeneratePrivateKey(rand io.Reader) (*mdoc.PrivateKey, error) {
 	return NewPrivateKey(&privateKey)
 }
 
+// NewPrivateKey wraps an existing private key for use with go-mdoc.
 func NewPrivateKey(privateKey *x448.Key) (*mdoc.PrivateKey, error) {
 	var publicKey x448.Key
 	x448.KeyGen(&publicKey, privateKey)

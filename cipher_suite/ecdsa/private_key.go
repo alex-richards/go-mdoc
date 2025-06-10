@@ -10,6 +10,7 @@ import (
 	"github.com/alex-richards/go-mdoc"
 )
 
+// GeneratePrivateKey generates a new private key for use with go-mdoc.
 func GeneratePrivateKey(rand io.Reader, curve mdoc.Curve) (*mdoc.PrivateKey, error) {
 	var c elliptic.Curve
 	switch curve {
@@ -31,6 +32,7 @@ func GeneratePrivateKey(rand io.Reader, curve mdoc.Curve) (*mdoc.PrivateKey, err
 	return newPrivateKey(curve, privateKey)
 }
 
+// NewPrivateKey wraps an existing private key for use with go-mdoc.
 func NewPrivateKey(privateKey *ecdsa.PrivateKey) (*mdoc.PrivateKey, error) {
 	var curve mdoc.Curve
 	switch privateKey.Curve {

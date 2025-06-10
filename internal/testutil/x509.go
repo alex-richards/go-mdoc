@@ -17,7 +17,7 @@ type ChainEntry struct {
 	Key  *ecdsa.PrivateKey
 }
 
-func CreateCA(t testing.TB, rand io.Reader, template x509.Certificate) *ChainEntry {
+func NewCA(t testing.TB, rand io.Reader, template x509.Certificate) *ChainEntry {
 	t.Helper()
 
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand)
@@ -55,7 +55,7 @@ func CreateCA(t testing.TB, rand io.Reader, template x509.Certificate) *ChainEnt
 	}
 }
 
-func CreateChain(t testing.TB, rand io.Reader, ca *ChainEntry, len int) []*x509.Certificate {
+func NewChain(t testing.TB, rand io.Reader, ca *ChainEntry, len int) []*x509.Certificate {
 	t.Helper()
 
 	if ca == nil {

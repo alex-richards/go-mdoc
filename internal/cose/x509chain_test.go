@@ -14,7 +14,7 @@ import (
 func Test_coseX509Chain(t *testing.T) {
 	rand := testutil.NewDeterministicRand(t)
 
-	cert := testutil.CreateCA(t, rand, x509.Certificate{
+	cert := testutil.NewCA(t, rand, x509.Certificate{
 		Subject:   pkix.Name{CommonName: "cert"},
 		Issuer:    pkix.Name{CommonName: "cert"},
 		NotBefore: time.UnixMilli(1000),

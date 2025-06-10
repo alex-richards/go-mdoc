@@ -15,6 +15,7 @@ import (
 	mdoced448 "github.com/alex-richards/go-mdoc/cipher_suite/ed448"
 	mdocx448 "github.com/alex-richards/go-mdoc/cipher_suite/x448"
 	"github.com/cloudflare/circl/dh/x448"
+	"github.com/cloudflare/circl/sign/ed448"
 )
 
 var (
@@ -29,6 +30,8 @@ func NewPrivateKey(curve mdoc.Curve, privateKey crypto.PrivateKey) (*mdoc.Privat
 		return mdocecdsa.NewPrivateKey(pk)
 	case ed25519.PrivateKey:
 		return mdoced25519.NewPrivateKey(pk)
+	case ed448.PrivateKey:
+		return mdoced448.NewPrivateKey(pk)
 	case ecdh.PrivateKey:
 		return mdocecdh.NewPrivateKey(&pk)
 	case *ecdh.PrivateKey:

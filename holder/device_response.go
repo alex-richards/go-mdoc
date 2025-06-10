@@ -7,7 +7,8 @@ import (
 	"github.com/alex-richards/go-mdoc/internal/cbor"
 )
 
-func CreateDeviceResponse(
+// NewDeviceResponse generates a DeviceResponse from issuer and device signed items.
+func NewDeviceResponse(
 	deviceRequest *mdoc.DeviceRequest,
 	candidateIssuerSigneds map[mdoc.DocType]mdoc.IssuerSigned,
 	candidateDeviceSigneds map[mdoc.DocType]map[mdoc.NameSpace]map[mdoc.DataElementIdentifier]any,
@@ -110,6 +111,7 @@ func CreateDeviceResponse(
 	), nil
 }
 
+// NewDeviceSigned creates a new device signed claims using the provided SDeviceKey.
 func NewDeviceSigned(
 	docType mdoc.DocType,
 	nameSpaces mdoc.DeviceNameSpaces,

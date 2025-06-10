@@ -7,6 +7,7 @@ import (
 	"github.com/alex-richards/go-mdoc"
 )
 
+// GeneratePrivateKey generates a new private key for use with go-mdoc.
 func GeneratePrivateKey(rand io.Reader) (*mdoc.PrivateKey, error) {
 	publicKey, privateKey, err := ed25519.GenerateKey(rand)
 	if err != nil {
@@ -16,6 +17,7 @@ func GeneratePrivateKey(rand io.Reader) (*mdoc.PrivateKey, error) {
 	return newPrivateKey(publicKey, privateKey)
 }
 
+// NewPrivateKey wraps an existing private key for use with go-mdoc.
 func NewPrivateKey(privateKey ed25519.PrivateKey) (*mdoc.PrivateKey, error) {
 	publicKey, ok := privateKey.Public().(ed25519.PublicKey)
 	if !ok {

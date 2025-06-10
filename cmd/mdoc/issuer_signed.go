@@ -140,7 +140,7 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 		for nameSpace, elements := range nameSpaces {
 			issuerSigned.NameSpaces[nameSpace] = make([]mdoc.IssuerSignedItemBytes, 0, len(elements))
 			for elementIdentifier, elementValue := range elements {
-				issuerSignedItemBytes, err := mdoc.CreateIssuerSignedItemBytes(rand.Reader, digestID, elementIdentifier, elementValue)
+				issuerSignedItemBytes, err := mdoc.NewIssuerSignedItemBytes(rand.Reader, digestID, elementIdentifier, elementValue)
 				if err != nil {
 					log.Fatal(err)
 				}

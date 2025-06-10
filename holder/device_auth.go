@@ -8,6 +8,8 @@ import (
 	"github.com/veraison/go-cose"
 )
 
+// NewDeviceAuth creates a new DeviceAuth, signed using the provided SDeviceKey.
+// TODO MAC auth
 func NewDeviceAuth(
 	rand io.Reader,
 	privateSDeviceKey *mdoc.PrivateKey,

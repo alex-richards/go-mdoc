@@ -14,7 +14,7 @@ import (
 func Test_VerifyChain(t *testing.T) {
 	rand := testutil.NewDeterministicRand(t)
 
-	root1 := testutil.CreateCA(
+	root1 := testutil.NewCA(
 		t,
 		rand,
 		x509.Certificate{
@@ -24,7 +24,7 @@ func Test_VerifyChain(t *testing.T) {
 			NotAfter:  time.UnixMilli(2000),
 		},
 	)
-	root2 := testutil.CreateCA(
+	root2 := testutil.NewCA(
 		t,
 		rand,
 		x509.Certificate{
@@ -52,46 +52,46 @@ func Test_VerifyChain(t *testing.T) {
 		{
 			name:  "single cert",
 			roots: roots,
-			chain: testutil.CreateChain(t, rand, root1, 1),
+			chain: testutil.NewChain(t, rand, root1, 1),
 			now:   time.UnixMilli(1500),
 		},
 		{
 			name:  "2 cert chain",
 			roots: roots,
-			chain: testutil.CreateChain(t, rand, root1, 2),
+			chain: testutil.NewChain(t, rand, root1, 2),
 			now:   time.UnixMilli(1500),
 		},
 		{
 			name:  "3 cert chain",
 			roots: roots,
-			chain: testutil.CreateChain(t, rand, root1, 3),
+			chain: testutil.NewChain(t, rand, root1, 3),
 			now:   time.UnixMilli(1500),
 		},
 		{
 			name:    "expired",
 			roots:   roots,
-			chain:   testutil.CreateChain(t, rand, root1, 1),
+			chain:   testutil.NewChain(t, rand, root1, 1),
 			now:     time.UnixMilli(500),
 			wantErr: ErrInvalidCertificate,
 		},
 		{
 			name:    "not yet valid",
 			roots:   roots,
-			chain:   testutil.CreateChain(t, rand, root1, 1),
+			chain:   testutil.NewChain(t, rand, root1, 1),
 			now:     time.UnixMilli(2500),
 			wantErr: ErrInvalidCertificate,
 		},
 		{
 			name:    "unrooted chain",
 			roots:   []*x509.Certificate{root2.Cert},
-			chain:   testutil.CreateChain(t, rand, root1, 1),
+			chain:   testutil.NewChain(t, rand, root1, 1),
 			now:     time.UnixMilli(2500),
 			wantErr: ErrInvalidCertificate,
 		},
 		{
 			name:  "broken chain",
 			roots: roots,
-			chain: testutil.CreateChain(t, rand, root1, 3),
+			chain: testutil.NewChain(t, rand, root1, 3),
 			tinker: func(chain []*x509.Certificate) []*x509.Certificate {
 				out := make([]*x509.Certificate, 0, len(chain)-1)
 				out = append(out, chain[0:1]...)
