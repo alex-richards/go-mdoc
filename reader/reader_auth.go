@@ -8,13 +8,25 @@ import (
 	"github.com/veraison/go-cose"
 )
 
+func NewDocRequest(itemsRequest *mdoc.ItemsRequest) (*mdoc.DocRequest, error) {
+	itemsRequestBytes, err := cbor.MarshalToNewTaggedEncodedCBOR(itemsRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &mdoc.DocRequest{
+		ItemsRequestBytes: *itemsRequestBytes,
+		ReaderAuth:        nil,
+	}, nil
+}
+
 func NewAuthenticatedDocRequest(
 	rand io.Reader,
 	readerAuthority ReaderAuthority,
 	itemsRequest *mdoc.ItemsRequest,
 	sessionTranscript *mdoc.SessionTranscript,
 ) (*mdoc.DocRequest, error) {
-	docRequest, err := mdoc.NewDocRequest(itemsRequest)
+	docRequest, err := NewDocRequest(itemsRequest)
 	if err != nil {
 		return nil, err
 	}

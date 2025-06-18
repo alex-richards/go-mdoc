@@ -30,28 +30,18 @@ const (
 
 func CurveFromName(name string) (Curve, error) {
 	switch name {
-	case string(CurveP256):
-		return CurveP256, nil
-	case string(CurveP384):
-		return CurveP384, nil
-	case string(CurveP521):
-		return CurveP521, nil
-	case string(CurveX25519):
-		return CurveX25519, nil
-	case string(CurveX448):
-		return CurveX448, nil
-	case string(CurveEd25519):
-		return CurveEd25519, nil
-	case string(CurveEd448):
-		return CurveEd448, nil
-	case string(CurveBrainpoolP256r1):
-		return CurveBrainpoolP256r1, nil
-	case string(CurveBrainpoolP320r1):
-		return CurveBrainpoolP320r1, nil
-	case string(CurveBrainpoolP384r1):
-		return CurveBrainpoolP384r1, nil
-	case string(CurveBrainpoolP512r1):
-		return CurveBrainpoolP512r1, nil
+	case string(CurveP256),
+		string(CurveP384),
+		string(CurveP521),
+		string(CurveX25519),
+		string(CurveX448),
+		string(CurveEd25519),
+		string(CurveEd448),
+		string(CurveBrainpoolP256r1),
+		string(CurveBrainpoolP320r1),
+		string(CurveBrainpoolP384r1),
+		string(CurveBrainpoolP512r1):
+		return Curve(name), nil
 	default:
 		return "", ErrUnsupportedCurve
 	}

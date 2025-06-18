@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
+	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/fxamacker/cbor/v2"
 )
 
@@ -51,20 +51,8 @@ func (dr *DeviceRequest) Verify(
 }
 
 type DocRequest struct {
-	ItemsRequestBytes cbor2.TaggedEncodedCBOR `cbor:"itemsRequest"`
-	ReaderAuth        *ReaderAuth             `cbor:"readerAuth,omitempty"`
-}
-
-func NewDocRequest(itemsRequest *ItemsRequest) (*DocRequest, error) {
-	itemsRequestBytes, err := cbor2.MarshalToNewTaggedEncodedCBOR(itemsRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	return &DocRequest{
-		ItemsRequestBytes: *itemsRequestBytes,
-		ReaderAuth:        nil,
-	}, nil
+	ItemsRequestBytes mdoccbor.TaggedEncodedCBOR `cbor:"itemsRequest"`
+	ReaderAuth        *ReaderAuth                `cbor:"readerAuth,omitempty"`
 }
 
 func (dr DocRequest) ItemsRequest() (*ItemsRequest, error) {
@@ -146,10 +134,10 @@ type DataElementIdentifier string
 type DataElementValue any
 
 type TypedDataElementValue struct {
-	CBORType cbor2.CBORType
+	CBORType mdoccbor.CBORType
 	Value    DataElementValue
 }
 
 func (v *TypedDataElementValue) MarshalCBOR() ([]byte, error) {
-	return cbor2.MarshalTypedValue(v.CBORType, v.Value)
+	return mdoccbor.MarshalTypedValue(v.CBORType, v.Value)
 }

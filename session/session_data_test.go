@@ -6,7 +6,7 @@ import (
 
 	"github.com/alex-richards/go-mdoc"
 	"github.com/alex-richards/go-mdoc/cipher_suite/ecdsa"
-	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
+	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/alex-richards/go-mdoc/internal/testutil"
 
 	"github.com/fxamacker/cbor/v2"
@@ -31,7 +31,7 @@ func Test_NewSessionEstablishment(t *testing.T) {
 }
 
 func Test_SessionEstablishment_CBOR_RoundTrip(t *testing.T) {
-	eReaderKeyBytes, err := cbor2.NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
+	eReaderKeyBytes, err := mdoccbor.NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func Test_SessionEstablishment_CBOR_RoundTrip(t *testing.T) {
 		&sessionEstablishment,
 		&sessionEstablishmentUnmarshalled,
 		cmp.FilterPath(func(p cmp.Path) bool {
-			return p.Last().Type() == reflect.TypeOf(cbor2.TaggedEncodedCBOR{})
+			return p.Last().Type() == reflect.TypeOf(mdoccbor.TaggedEncodedCBOR{})
 		}, cmp.Ignore()),
 	); diff != "" {
 		t.Fatal(diff)

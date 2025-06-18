@@ -9,9 +9,9 @@ import (
 	"errors"
 	"time"
 
-	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
-	cose2 "github.com/alex-richards/go-mdoc/internal/cose"
-	mdocX509 "github.com/alex-richards/go-mdoc/internal/x509"
+	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
+	mdoccose "github.com/alex-richards/go-mdoc/internal/cose"
+	mdocx509 "github.com/alex-richards/go-mdoc/internal/x509"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
@@ -36,14 +36,14 @@ func (ra *ReaderAuth) UnmarshalCBOR(data []byte) error {
 func (ra *ReaderAuth) Verify(
 	rootCertificates []*x509.Certificate,
 	now time.Time,
-	readerAuthenticationBytes *cbor2.TaggedEncodedCBOR,
+	readerAuthenticationBytes *mdoccbor.TaggedEncodedCBOR,
 ) error {
-	chain, err := cose2.X509Chain(ra.Headers.Unprotected)
+	chain, err := mdoccose.X509Chain(ra.Headers.Unprotected)
 	if err != nil {
 		return err
 	}
 
-	readerAuthCertificate, err := mdocX509.VerifyChain(
+	readerAuthCertificate, err := mdocx509.VerifyChain(
 		rootCertificates,
 		chain,
 		now,
@@ -139,19 +139,19 @@ type ReaderAuthentication struct {
 	_                    struct{} `cbor:",toarray"`
 	ReaderAuthentication string
 	SessionTranscript    SessionTranscript
-	ItemsRequestBytes    cbor2.TaggedEncodedCBOR
+	ItemsRequestBytes    mdoccbor.TaggedEncodedCBOR
 }
 
 func NewReaderAuthenticationBytes(
 	sessionTranscript *SessionTranscript,
-	itemsRequestBytes *cbor2.TaggedEncodedCBOR,
-) (*cbor2.TaggedEncodedCBOR, error) {
-	return cbor2.MarshalToNewTaggedEncodedCBOR(NewReaderAuthentication(sessionTranscript, itemsRequestBytes))
+	itemsRequestBytes *mdoccbor.TaggedEncodedCBOR,
+) (*mdoccbor.TaggedEncodedCBOR, error) {
+	return mdoccbor.MarshalToNewTaggedEncodedCBOR(NewReaderAuthentication(sessionTranscript, itemsRequestBytes))
 }
 
 func NewReaderAuthentication(
 	sessionTranscript *SessionTranscript,
-	itemsRequestBytes *cbor2.TaggedEncodedCBOR,
+	itemsRequestBytes *mdoccbor.TaggedEncodedCBOR,
 ) *ReaderAuthentication {
 	return &ReaderAuthentication{
 		ReaderAuthentication: "ReaderAuthentication",

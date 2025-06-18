@@ -4,13 +4,13 @@ import (
 	"reflect"
 	"testing"
 
-	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
+	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestSessionTranscript_CBOR_RoundTrip(t *testing.T) {
-	deviceEngagementBytes, err := cbor2.NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
+	deviceEngagementBytes, err := mdoccbor.NewTaggedEncodedCBOR([]byte{1, 2, 3, 4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestSessionTranscript_CBOR_RoundTrip(t *testing.T) {
 			&sessionTranscript,
 			&sessionTranscriptUnmarshalled,
 			cmp.FilterPath(func(p cmp.Path) bool {
-				return p.Last().Type() == reflect.TypeOf(cbor2.TaggedEncodedCBOR{})
+				return p.Last().Type() == reflect.TypeOf(mdoccbor.TaggedEncodedCBOR{})
 			}, cmp.Ignore()),
 		); diff != "" {
 			t.Fatal(diff)

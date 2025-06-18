@@ -3,7 +3,7 @@ package mdoc
 import (
 	"errors"
 
-	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
+	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
 )
@@ -22,7 +22,7 @@ type DeviceAuth struct {
 
 func (da *DeviceAuth) Verify(
 	deviceKey *PublicKey,
-	deviceAuthenticationBytes *cbor2.TaggedEncodedCBOR,
+	deviceAuthenticationBytes *mdoccbor.TaggedEncodedCBOR,
 ) error {
 	switch {
 	case da.DeviceSignature != nil && da.DeviceMAC != nil:
@@ -42,7 +42,7 @@ func (da *DeviceAuth) Verify(
 func verifyDeviceSignature(
 	deviceKey *PublicKey,
 	deviceSignature *DeviceSignature,
-	deviceAuthenticationBytes *cbor2.TaggedEncodedCBOR,
+	deviceAuthenticationBytes *mdoccbor.TaggedEncodedCBOR,
 ) error {
 	coseVerifier, err := (*cose.Key)(deviceKey).Verifier()
 	if err != nil {
@@ -70,21 +70,21 @@ type DeviceAuthentication struct {
 	DeviceAuthentication string
 	SessionTranscript    SessionTranscript
 	DocType              DocType
-	DeviceNameSpaceBytes cbor2.TaggedEncodedCBOR
+	DeviceNameSpaceBytes mdoccbor.TaggedEncodedCBOR
 }
 
 func NewDeviceAuthenticationBytes(
 	sessionTranscript *SessionTranscript,
 	docType DocType,
-	deviceNameSpaceBytes *cbor2.TaggedEncodedCBOR,
-) (*cbor2.TaggedEncodedCBOR, error) {
-	return cbor2.MarshalToNewTaggedEncodedCBOR(NewDeviceAuthentication(sessionTranscript, docType, deviceNameSpaceBytes))
+	deviceNameSpaceBytes *mdoccbor.TaggedEncodedCBOR,
+) (*mdoccbor.TaggedEncodedCBOR, error) {
+	return mdoccbor.MarshalToNewTaggedEncodedCBOR(NewDeviceAuthentication(sessionTranscript, docType, deviceNameSpaceBytes))
 }
 
 func NewDeviceAuthentication(
 	sessionTranscript *SessionTranscript,
 	docType DocType,
-	deviceNameSpaceBytes *cbor2.TaggedEncodedCBOR,
+	deviceNameSpaceBytes *mdoccbor.TaggedEncodedCBOR,
 ) *DeviceAuthentication {
 	return &DeviceAuthentication{
 		DeviceAuthentication: "DeviceAuthentication",

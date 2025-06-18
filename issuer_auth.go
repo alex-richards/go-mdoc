@@ -10,9 +10,9 @@ import (
 	"reflect"
 	"time"
 
-	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
-	cose2 "github.com/alex-richards/go-mdoc/internal/cose"
-	mdocX509 "github.com/alex-richards/go-mdoc/internal/x509"
+	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
+	mdoccose "github.com/alex-richards/go-mdoc/internal/cose"
+	mdocx509 "github.com/alex-richards/go-mdoc/internal/x509"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/veraison/go-cose"
@@ -48,12 +48,12 @@ func (ia *IssuerAuth) UnmarshalCBOR(data []byte) error {
 }
 
 func (ia *IssuerAuth) Verify(rootCertificates []*x509.Certificate, now time.Time) error {
-	chain, err := cose2.X509Chain(ia.Headers.Unprotected)
+	chain, err := mdoccose.X509Chain(ia.Headers.Unprotected)
 	if err != nil {
 		return err
 	}
 
-	issuerAuthCertificate, err := mdocX509.VerifyChain(
+	issuerAuthCertificate, err := mdocx509.VerifyChain(
 		rootCertificates,
 		chain,
 		now,
@@ -210,8 +210,8 @@ func ValidateDocumentSignerCertificate(documentSignerCertificate *x509.Certifica
 	return nil
 }
 
-func (ia *IssuerAuth) MobileSecurityObjectBytes() (*cbor2.TaggedEncodedCBOR, error) {
-	mobileSecurityObjectBytes := new(cbor2.TaggedEncodedCBOR)
+func (ia *IssuerAuth) MobileSecurityObjectBytes() (*mdoccbor.TaggedEncodedCBOR, error) {
+	mobileSecurityObjectBytes := new(mdoccbor.TaggedEncodedCBOR)
 	if err := cbor.Unmarshal(ia.Payload, mobileSecurityObjectBytes); err != nil {
 		return nil, err
 	}

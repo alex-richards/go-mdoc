@@ -7,7 +7,7 @@ import (
 	"io"
 	"time"
 
-	cbor2 "github.com/alex-richards/go-mdoc/internal/cbor"
+	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/fxamacker/cbor/v2"
 )
 
@@ -163,7 +163,7 @@ func (ins IssuerNameSpaces) IssuerSignedItems() (IssuerSignedItems, error) {
 	return issuerSignedItemss, nil
 }
 
-type IssuerSignedItemBytes cbor2.TaggedEncodedCBOR
+type IssuerSignedItemBytes mdoccbor.TaggedEncodedCBOR
 
 func NewIssuerSignedItemBytes(
 	rand io.Reader,
@@ -177,7 +177,7 @@ func NewIssuerSignedItemBytes(
 		return nil, err
 	}
 
-	issuerSignedItemBytes, err := cbor2.MarshalToNewTaggedEncodedCBOR(IssuerSignedItem{
+	issuerSignedItemBytes, err := mdoccbor.MarshalToNewTaggedEncodedCBOR(IssuerSignedItem{
 		DigestID:          digestID,
 		Random:            random,
 		ElementIdentifier: elementIdentifier,
@@ -191,11 +191,11 @@ func NewIssuerSignedItemBytes(
 }
 
 func (isib *IssuerSignedItemBytes) MarshalCBOR() ([]byte, error) {
-	return (*cbor2.TaggedEncodedCBOR)(isib).MarshalCBOR()
+	return (*mdoccbor.TaggedEncodedCBOR)(isib).MarshalCBOR()
 }
 
 func (isib *IssuerSignedItemBytes) UnmarshalCBOR(data []byte) error {
-	return (*cbor2.TaggedEncodedCBOR)(isib).UnmarshalCBOR(data)
+	return (*mdoccbor.TaggedEncodedCBOR)(isib).UnmarshalCBOR(data)
 }
 
 func (isib *IssuerSignedItemBytes) IssuerSignedItem() (*IssuerSignedItem, error) {
@@ -226,13 +226,13 @@ type IssuerSignedItem struct {
 }
 
 type DeviceSigned struct {
-	NameSpacesBytes cbor2.TaggedEncodedCBOR `cbor:"nameSpaces"`
-	DeviceAuth      DeviceAuth              `cbor:"deviceAuth"`
+	NameSpacesBytes mdoccbor.TaggedEncodedCBOR `cbor:"nameSpaces"`
+	DeviceAuth      DeviceAuth                 `cbor:"deviceAuth"`
 }
 
 func (ds *DeviceSigned) Verify(
 	deviceKey *PublicKey,
-	deviceAuthenticationBytes *cbor2.TaggedEncodedCBOR,
+	deviceAuthenticationBytes *mdoccbor.TaggedEncodedCBOR,
 	mobileSecurityObject *MobileSecurityObject,
 ) error {
 	err := ds.DeviceAuth.Verify(deviceKey, deviceAuthenticationBytes)
