@@ -24,6 +24,10 @@ const (
 	CBORTypeBool     CBORType = "bool"
 )
 
+func ParseTypedValue(cborType CBORType, value any) (any, error) {
+	return nil, errors.New("TODO") // TODO
+}
+
 func MarshalTypedValue(cborType CBORType, value any) ([]byte, error) {
 	switch cborType {
 	case CBORTypeTstr:

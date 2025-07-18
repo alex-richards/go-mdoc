@@ -7,13 +7,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"log"
 	"regexp"
 	"time"
 
 	"github.com/alex-richards/go-mdoc"
+	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/alex-richards/go-mdoc/issuer"
 	"github.com/cloudflare/circl/sign/ed448"
 	"github.com/fxamacker/cbor/v2"
@@ -109,12 +109,25 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 			inputNameSpace := match[1]
 			inputDataElementIdentifier := match[2]
 			inputValue := match[3]
-			inputType := match[4]
+			inputType := mdoccbor.CBORType(match[4])
 
-			if len(inputType) > 0 {
-				// TODO convert values
+			var parsedValue mdoc.DataElementValue
+			switch inputType {
+			case mdoccbor.CBORTypeTstr:
+			case mdoccbor.CBORTypeBstr:
+			case mdoccbor.CBORTypeTdate:
+			case mdoccbor.CBORTypeFullDate:
+			case mdoccbor.CBORTypeUint:
+			case mdoccbor.CBORTypeBool:
+				parsedValue = mdoc.TypedDataElementValue{
+					CBORType: inputType,
+					Value:    inputValue,
+				}
+			case "":
+				parsedValue = inputValue
+			default:
+				log.Fatalf("invalid type: %s", inputType)
 			}
-			parsedValue := inputValue
 
 			nameSpace, exists := nameSpaces[mdoc.NameSpace(inputNameSpace)]
 			if !exists {
@@ -124,13 +137,11 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 
 			_, exists = nameSpace[mdoc.DataElementIdentifier(inputDataElementIdentifier)]
 			if exists {
-				// TODO duplicate
+				log.Fatalf("duplicate item: %s:%s", inputNameSpace, inputDataElementIdentifier)
 			}
 
 			nameSpace[mdoc.DataElementIdentifier(inputDataElementIdentifier)] = parsedValue
 		}
-
-		fmt.Printf("namespaces = %#v\n", nameSpaces)
 
 		issuerSigned := mdoc.IssuerSigned{
 			NameSpaces: make(mdoc.IssuerNameSpaces),

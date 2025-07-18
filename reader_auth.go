@@ -1,7 +1,6 @@
 package mdoc
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/x509"
@@ -17,11 +16,19 @@ import (
 	"github.com/veraison/go-cose"
 )
 
+const (
+	ReaderAuthMaxAgeDays = 1187
+)
+
 var (
 	ErrMissingAlgorithmHeader       = errors.New("mdoc: missing algorithm header")
 	ErrNoRootCertificates           = errors.New("mdoc: no root certificates")
 	ErrEmptyChain                   = errors.New("mdoc: empty chan")
 	ErrInvalidReaderAuthCertificate = errors.New("mdoc: invalid reader auth certificate")
+)
+
+var (
+	ReaderAuthenticationKeyUsage = asn1.ObjectIdentifier{1, 0, 18013, 5, 1, 6}
 )
 
 type ReaderAuth cose.UntaggedSign1Message
@@ -49,7 +56,7 @@ func (ra *ReaderAuth) Verify(
 		now,
 		nil,
 		nil,
-		validateReaderAuthenticationCertificate,
+		ValidateReaderAuthenticationCertificate,
 	)
 	if err != nil {
 		return err
@@ -73,57 +80,62 @@ func (ra *ReaderAuth) Verify(
 	)
 }
 
-func validateReaderAuthenticationCertificate(certificate *x509.Certificate, signer *x509.Certificate) error {
-	if certificate.Version != 3 {
+func ValidateReaderAuthenticationCertificate(readerAuthCertificate *x509.Certificate, issuerCertificate *x509.Certificate) error {
+	if readerAuthCertificate.Version != 3 {
 		return ErrInvalidReaderAuthCertificate
 	}
 
 	// TODO serial number, max len 20 octets
 
-	validityDuration := certificate.NotAfter.Sub(certificate.NotBefore)
-	if validityDuration.Hours()/24 > 1187 {
-		return ErrInvalidReaderAuthCertificate
+	{
+		maxNotAfter := readerAuthCertificate.NotBefore.AddDate(0, 0, ReaderAuthMaxAgeDays)
+		if readerAuthCertificate.NotAfter.Compare(maxNotAfter) > 0 {
+			return ErrInvalidReaderAuthCertificate
+		}
 	}
 
-	if len(certificate.RawSubject) == 0 {
+	if len(readerAuthCertificate.RawSubject) == 0 {
 		return ErrInvalidReaderAuthCertificate
 	}
 
 	// TODO subject public key info checks
 
-	if !bytes.Equal(certificate.AuthorityKeyId, signer.SubjectKeyId) {
-		return ErrInvalidReaderAuthCertificate
-	}
+	// TODO signer != immediate parent
+	//if !bytes.Equal(certificate.AuthorityKeyId, signer.SubjectKeyId) {
+	//	return ErrInvalidReaderAuthCertificate
+	//}
 
 	// TODO subject key identifier check
 
-	if certificate.KeyUsage != x509.KeyUsageDigitalSignature {
+	if readerAuthCertificate.KeyUsage != x509.KeyUsageDigitalSignature {
 		return ErrInvalidReaderAuthCertificate
 	}
 
 	// TODO issuer alt name
 
-	extKeyUsage := certificate.UnknownExtKeyUsage
-	if len(extKeyUsage) != 1 {
-		return ErrInvalidReaderAuthCertificate
-	}
-	if !extKeyUsage[0].Equal(asn1.ObjectIdentifier{1, 0, 18013, 5, 1, 6}) {
-		return ErrInvalidReaderAuthCertificate
+	{
+		extKeyUsage := readerAuthCertificate.UnknownExtKeyUsage
+		if len(extKeyUsage) != 1 {
+			return ErrInvalidReaderAuthCertificate
+		}
+		if !extKeyUsage[0].Equal(ReaderAuthenticationKeyUsage) {
+			return ErrInvalidReaderAuthCertificate
+		}
 	}
 
 	// TODO CRL distribution points
 
 	// TODO authority information access
 
-	switch certificate.PublicKeyAlgorithm {
+	switch readerAuthCertificate.PublicKeyAlgorithm {
 	case x509.ECDSA:
-		_, ok := certificate.PublicKey.(*ecdsa.PublicKey)
+		_, ok := readerAuthCertificate.PublicKey.(*ecdsa.PublicKey)
 		if !ok {
 			return ErrInvalidReaderAuthCertificate
 		}
 
 	case x509.Ed25519:
-		_, ok := certificate.PublicKey.(*ed25519.PublicKey)
+		_, ok := readerAuthCertificate.PublicKey.(*ed25519.PublicKey)
 		if !ok {
 			return ErrInvalidReaderAuthCertificate
 		}
