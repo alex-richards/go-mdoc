@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/alex-richards/go-mdoc"
@@ -44,8 +45,22 @@ func cmdDocSignerCreate(cmd *cli.Cmd) {
 	notAfter := new(TimeValue)
 	cmd.VarArg("NOT_AFTER", notAfter, "Certificate Valid To as an RFC3339 date.")
 
-	curve := (CurveValue)(mdoc.CurveP256)
-	cmd.VarOpt("C curve", &curve, "Private Key curve. One of P256, P384, P521, Ed25519.")
+	curve := CurveValue{
+		value:     mdoc.CurveP256,
+		supported: []mdoc.Curve{mdoc.CurveP256, mdoc.CurveP384, mdoc.CurveP521, mdoc.CurveEd25519},
+	}
+
+	{
+		curveDesc := strings.Builder{}
+		curveDesc.WriteString("Private Key curve. One of ")
+		curveDesc.WriteString(curve.supported[0].Name())
+		for _, sc := range curve.supported[1:] {
+			curveDesc.WriteString(", ")
+			curveDesc.WriteString(sc.Name())
+		}
+		curveDesc.WriteString(".")
+		cmd.VarOpt("C curve", &curve, curveDesc.String())
+	}
 
 	keyFile := &WriterValue{
 		value:      "-",

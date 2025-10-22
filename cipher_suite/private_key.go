@@ -22,7 +22,7 @@ var (
 	ErrUnsupportedPrivateKey = errors.New("mdoc: unsupported private key")
 )
 
-func NewPrivateKey(curve mdoc.Curve, privateKey crypto.PrivateKey) (*mdoc.PrivateKey, error) {
+func NewPrivateKey(privateKey crypto.PrivateKey) (*mdoc.PrivateKey, error) {
 	switch pk := privateKey.(type) {
 	case ecdsa.PrivateKey:
 		return mdocecdsa.NewPrivateKey(&pk)

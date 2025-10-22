@@ -10,10 +10,13 @@ import (
 	"github.com/alex-richards/go-mdoc"
 )
 
-type CurveValue mdoc.Curve
+type CurveValue struct {
+	value     mdoc.Curve
+	supported []mdoc.Curve
+}
 
 func (v *CurveValue) Get() mdoc.Curve {
-	return mdoc.Curve(*v)
+	return v.value
 }
 
 func (v *CurveValue) Set(value string) error {
@@ -22,8 +25,19 @@ func (v *CurveValue) Set(value string) error {
 		return err
 	}
 
-	*v = CurveValue(curve)
-	return nil
+	if len(v.supported) == 0 {
+		v.value = curve
+		return nil
+	}
+
+	for _, s := range v.supported {
+		if s == curve {
+			v.value = curve
+			return nil
+		}
+	}
+
+	return errors.New("unsupported curve")
 }
 
 func (v *CurveValue) String() string {
@@ -31,7 +45,7 @@ func (v *CurveValue) String() string {
 		return ""
 	}
 
-	return (mdoc.Curve)(*v).Name()
+	return v.value.Name()
 }
 
 type BigIntValue big.Int

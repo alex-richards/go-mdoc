@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/alex-richards/go-mdoc"
@@ -36,8 +37,22 @@ func cmdIacaCreate(cmd *cli.Cmd) {
 	var notAfter TimeValue
 	cmd.VarArg("NOT_AFTER", &notAfter, "Certificate Valid To as an RFC3339 date.")
 
-	curve := (CurveValue)(mdoc.CurveP256)
-	cmd.VarOpt("C curve", &curve, "Private Key curve. One of P256, P384, P521.")
+	curve := CurveValue{
+		value:     mdoc.CurveP256,
+		supported: []mdoc.Curve{mdoc.CurveP256, mdoc.CurveP384, mdoc.CurveP521},
+	}
+
+	{
+		desc := strings.Builder{}
+		desc.WriteString("Private Key curve. One of ")
+		desc.WriteString(curve.supported[0].Name())
+		for _, c := range curve.supported[1:] {
+			desc.WriteString(", ")
+			desc.WriteString(c.Name())
+		}
+		desc.WriteString(".")
+		cmd.VarOpt("C curve", &curve, desc.String())
+	}
 
 	keyFile := &WriterValue{
 		value:      "-",
@@ -50,9 +65,6 @@ func cmdIacaCreate(cmd *cli.Cmd) {
 		withStdout: true,
 	}
 	cmd.VarOpt("c cert-file", certFile, "Certificate output file, defaults to stdout.")
-
-	cmd.Before = func() {
-	}
 
 	cmd.Action = func() {
 		var s *string

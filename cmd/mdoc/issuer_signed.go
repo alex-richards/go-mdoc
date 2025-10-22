@@ -1,24 +1,21 @@
 package main
 
 import (
-	"crypto"
-	"crypto/ecdsa"
-	"crypto/ed25519"
-	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/x509"
 	"encoding/hex"
+	"encoding/pem"
 	"io"
 	"log"
 	"regexp"
 	"time"
 
 	"github.com/alex-richards/go-mdoc"
+	"github.com/alex-richards/go-mdoc/cipher_suite"
 	mdoccbor "github.com/alex-richards/go-mdoc/internal/cbor"
 	"github.com/alex-richards/go-mdoc/issuer"
-	"github.com/cloudflare/circl/sign/ed448"
 	"github.com/fxamacker/cbor/v2"
 	cli "github.com/jawher/mow.cli"
-	"github.com/veraison/go-cose"
 )
 
 func cmdIssuerSigned(cmd *cli.Cmd) {
@@ -29,78 +26,85 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 	cmd.Spec = "DOCUMENT_SIGNER_PRIVATE_KEY DOCUMENT_SIGNER_CERTIFICATE DEVICE_KEY DOCTYPE ITEM... [OUT]"
 
 	documentSignerPrivateKey := ReaderValue{}
-	cmd.VarArg("DOCUMENT_SIGNER_PRIVATE_KEY", &documentSignerPrivateKey, "")
+	cmd.VarArg("DOCUMENT_SIGNER_PRIVATE_KEY", &documentSignerPrivateKey, "Path to PEM encoded Document Signer Private Key.")
 
 	documentSignerCertificate := ReaderValue{}
-	cmd.VarArg("DOCUMENT_SIGNER_CERTIFICATE", &documentSignerCertificate, "")
+	cmd.VarArg("DOCUMENT_SIGNER_CERTIFICATE", &documentSignerCertificate, "Path to PEM encoded Document Signer Certificate.")
 
 	deviceKey := ReaderValue{}
-	cmd.VarArg("DEVICE_KEY", &deviceKey, "")
+	cmd.VarArg("DEVICE_KEY", &deviceKey, "Path to PEM encoded Public Device Key.")
 
-	docType := cmd.StringArg("DOCTYPE", "", "")
-	items := cmd.StringsArg("ITEM", nil, "")
+	docType := cmd.StringArg("DOCTYPE", "", "Issuer Signed DocType.")
+	items := cmd.StringsArg("ITEM", nil, "Claim items in the format: namespace:dei:value[:(tstr|bstr|tdate|full-date|uint|bool)]")
 
 	out := WriterValue{
 		value:      "-",
 		withStdout: true,
 	}
-	cmd.VarArg("OUT", &out, "")
+	cmd.VarArg("OUT", &out, "Issuer Signed output file. Defaults to stdout.")
 
 	cmd.Action = func() {
-		var issuerAuthority issuer.IssuerAuthority
-		{
-			reader, err := documentSignerPrivateKey.Open()
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer reader.Close()
+		documentSignerPrivateKeyReadCloser, err := documentSignerPrivateKey.Open()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer documentSignerPrivateKeyReadCloser.Close()
 
-			privateKey, err := readPrivateKeyFromPEM(reader)
-			if err != nil {
-				log.Fatal(err)
-			}
+		documentSignerCertificateReadCloser, err := documentSignerCertificate.Open()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer documentSignerCertificateReadCloser.Close()
 
-			reader, err = documentSignerCertificate.Open()
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer reader.Close()
+		deviceKeyReadCloser, err := deviceKey.Open()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer deviceKeyReadCloser.Close()
 
-			certificate, err := readCertificateFromPEM(reader)
-			if err != nil {
-				log.Fatal(err)
-			}
+		cmdIssuerSignedCreateAction(
+			documentSignerPrivateKeyReadCloser,
+			documentSignerCertificateReadCloser,
+			deviceKeyReadCloser,
+			*docType,
+			*items,
+		)
+	}
+}
 
-			issuerAuthority = issuer.IssuerAuthority{
-				Signer:                    cryptoSigner{privateKey},
-				DocumentSignerCertificate: certificate,
-			}
+func cmdIssuerSignedCreateAction(
+	documentSignerPrivateKeyReader io.Reader,
+	documentSignerCertificateReader io.Reader,
+	deviceKeyReader io.Reader,
+	docType string,
+	items []string,
+) {
+	var issuerAuthority issuer.IssuerAuthority
+	{
+		privateKey, err := readPrivateKeyFromPEM(documentSignerPrivateKeyReader)
+		if err != nil {
+			log.Fatal(err)
 		}
 
-		var sdf mdoc.PublicKey
-		{
-			reader, err := deviceKey.Open()
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer reader.Close()
-
-			deviceKeyData, err := io.ReadAll(reader)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			err = cbor.Unmarshal(deviceKeyData, &sdf)
+		certificate, err := readCertificateFromPEM(documentSignerCertificateReader)
+		if err != nil {
+			log.Fatal(err)
 		}
 
+		issuerAuthority = issuer.IssuerAuthority{
+			Signer:                    cryptoSigner{privateKey},
+			DocumentSignerCertificate: certificate,
+		}
+	}
+
+	nameSpaces := make(map[mdoc.NameSpace]map[mdoc.DataElementIdentifier]mdoc.DataElementValue)
+	{
 		inputItemPattern, err := regexp.Compile("^([a-z0-9.]+):([a-z0-9]+):([a-z0-9]+)(@(tstr|bstr|tdate|full-date|uint|bool))?$")
 		if err != nil {
 			panic(err)
 		}
 
-		nameSpaces := make(map[mdoc.NameSpace]map[mdoc.DataElementIdentifier]mdoc.DataElementValue)
-
-		for _, item := range *items {
+		for _, item := range items {
 			match := inputItemPattern.FindStringSubmatch(item)
 			if match == nil {
 				log.Fatalf("invalid item: %s", item)
@@ -113,18 +117,38 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 
 			var parsedValue mdoc.DataElementValue
 			switch inputType {
-			case mdoccbor.CBORTypeTstr:
-			case mdoccbor.CBORTypeBstr:
-			case mdoccbor.CBORTypeTdate:
-			case mdoccbor.CBORTypeFullDate:
-			case mdoccbor.CBORTypeUint:
-			case mdoccbor.CBORTypeBool:
-				parsedValue = mdoc.TypedDataElementValue{
-					CBORType: inputType,
-					Value:    inputValue,
-				}
 			case "":
+			case mdoccbor.CBORTypeTstr:
 				parsedValue = inputValue
+
+			case mdoccbor.CBORTypeBstr:
+				parsedValue, err = hex.DecodeString(inputValue)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+			case mdoccbor.CBORTypeTdate:
+				// TODO
+				log.Fatal("TODO")
+
+			case mdoccbor.CBORTypeFullDate:
+				// TODO
+				log.Fatal("TODO")
+
+			case mdoccbor.CBORTypeUint:
+				// TODO
+				log.Fatal("TODO")
+
+			case mdoccbor.CBORTypeBool:
+				switch inputValue {
+				case "true":
+					parsedValue = true
+				case "false":
+					parsedValue = false
+				default:
+					log.Fatalf("invalid value: %s", inputValue)
+				}
+
 			default:
 				log.Fatalf("invalid type: %s", inputType)
 			}
@@ -142,11 +166,13 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 
 			nameSpace[mdoc.DataElementIdentifier(inputDataElementIdentifier)] = parsedValue
 		}
+	}
 
-		issuerSigned := mdoc.IssuerSigned{
-			NameSpaces: make(mdoc.IssuerNameSpaces),
-		}
+	issuerSigned := mdoc.IssuerSigned{
+		NameSpaces: make(mdoc.IssuerNameSpaces),
+	}
 
+	{
 		var digestID mdoc.DigestID
 		for nameSpace, elements := range nameSpaces {
 			issuerSigned.NameSpaces[nameSpace] = make([]mdoc.IssuerSignedItemBytes, 0, len(elements))
@@ -161,31 +187,54 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 				digestID++
 			}
 		}
+	}
 
-		now := time.Now()
-		deviceKey := &mdoc.PublicKey{
-			Type:      cose.KeyTypeEC2,
-			Algorithm: 0,
-			Params: map[any]any{
-				cose.KeyLabelEC2Curve: cose.CurveP256,
-				cose.KeyLabelEC2X:     []byte{1, 2, 3, 4},
-				cose.KeyLabelEC2Y:     []byte{5, 6, 7, 8},
-			},
+	var deviceKey *mdoc.PublicKey
+	{
+		deviceKeyPEM, err := io.ReadAll(deviceKeyReader)
+		if err != nil {
+			log.Fatal(err)
 		}
 
+		deviceKeyDER, _ := pem.Decode(deviceKeyPEM)
+		if deviceKeyDER == nil || deviceKeyDER.Type != "PUBLIC KEY" {
+			log.Fatal("failed to decode deviceKey")
+		}
+
+		deviceKeyPublic, err := x509.ParsePKIXPublicKey(deviceKeyDER.Bytes)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		deviceKey, err = cipher_suite.NewPublicKey(deviceKeyPublic)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	{
+		if len(docType) == 0 {
+			log.Fatal("missing docType")
+		}
+
+		now := time.Now()
+
 		mobileSecurityObject, err := issuer.NewMobileSecurityObject(
-			(mdoc.DocType)(*docType),
+			(mdoc.DocType)(docType),
 			mdoc.DigestAlgorithmSHA256,
 			issuerSigned.NameSpaces,
 			deviceKey,
 			&mdoc.ValidityInfo{
 				Signed:     now,
 				ValidFrom:  now,
-				ValidUntil: now.Add(1 * time.Hour),
+				ValidUntil: now.Add(1 * time.Hour), // TODO duration
 			},
 			nil,
 			nil,
 		)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		issuerAuth, err := issuer.NewIssuerAuth(
 			rand.Reader,
@@ -196,7 +245,9 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 			log.Fatal(err)
 		}
 		issuerSigned.IssuerAuth = *issuerAuth
+	}
 
+	{
 		issuerSignedBytes, err := cbor.Marshal(issuerSigned)
 		if err != nil {
 			log.Fatal(err)
@@ -204,32 +255,4 @@ func cmdIssuerSignedCreate(cmd *cli.Cmd) {
 
 		println(hex.EncodeToString(issuerSignedBytes))
 	}
-}
-
-type cryptoSigner struct {
-	signer crypto.Signer
-}
-
-func (s cryptoSigner) Curve() mdoc.Curve {
-	switch privateKey := s.signer.(type) {
-	case *ecdsa.PrivateKey:
-		switch privateKey.Curve {
-		case elliptic.P256():
-			return mdoc.CurveP256
-		case elliptic.P384():
-			return mdoc.CurveP384
-		case elliptic.P521():
-			return mdoc.CurveP521
-		}
-	case ed25519.PrivateKey:
-		return mdoc.CurveEd25519
-	case ed448.PrivateKey:
-		return mdoc.CurveEd448
-	}
-
-	return ""
-}
-
-func (s cryptoSigner) Sign(rand io.Reader, message []byte) ([]byte, error) {
-	return s.signer.Sign(rand, message, nil)
 }
